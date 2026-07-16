@@ -1,21 +1,14 @@
 # DIaT
 
-> 需求拆分与翻译工具 — 从 PDF 文档 中提取层级化需求，按结构拆分并翻译，输出 Excel 报表。
+> Structured-requirement extraction and translation tool — pull hierarchical
+> requirements out of PDF documents, decompose by structure, translate, and
+> export an Excel report.
 
-Bilingual docs: **中文** (this section) · **English** (below)
+Language docs: **English** (this file) · **中文** → [`README_zh.md`](README_zh.md)
 
 ---
 
-## 1. 作用 / Purpose
-
-本工具面向 **多语言、结构化的 PDF 文档** 的典型工作流：
-
-- **提取** — 从多栏、多表格、含重复页眉/页脚的 PDF 中还原正文文本（4 策略融合 + 扫描件 OCR 回退）
-- **拆分** — 按文档章节结构（章 → 节 → 条 → 款 → 项）层级化分解为独立需求
-- **断句** — 按源语言（pt / en / zh / ja / ko / es / fr / de / …）硬编码的最佳实践进行句级切分
-- **翻译** — 调用 Google Translate 或 Agent 模式完成多语言翻译
-- **校验** — 强制正文覆盖率校验（< 80% 即报错，绝不丢弃正文）
-- **输出** — Excel 报表（ID / 章 / 节 / 需求原文 / 各语言翻译列）
+## 1. Purpose
 
 This tool processes **structured, multi-language PDF documents** end-to-end:
 
@@ -28,49 +21,49 @@ This tool processes **structured, multi-language PDF documents** end-to-end:
 
 ---
 
-## 2. 能力边界 / Capability Boundaries
+## 2. Capability Boundaries
 
 ### ✅ Supported
 
-| 维度 | 范围 |
-|------|------|
-| 输入 | 单 PDF 文件，或 PDF 所在目录（批量） |
-| 结构类型 | 带层级编号的文档（合同、规格书、法规、标书、标准等）|
-| 页眉/页脚 | 自动探测重复块（≥ 75% 页出现）并剥离 |
-| 扫描件 | 探测后调用 `ocrmypdf --language <config>` 做 OCR 回退（lazy import，非硬依赖）|
-| 层级标记 | `Art. 1º` / `CAPÍTULO` / `SEÇÃO` / `§ 1º` / `I.` / `1.` / `1.2` / `1.2.1` / `（1）` / `(a)` / `•` / `(1)` / 罗马数字 / 带圈数字 |
-| 源语言 | pysbd (可选) + 内置正则 fallback；pt / en / es / fr / de / zh / ja / ko 均有专属断句规则 |
-| 目标语言 | 任意 googletrans / Claude 支持的语言码（每次输出 2 列）|
-| 翻译引擎 | Google Translate（直连）或 Agent（Claude 自行翻译）|
-| 专有名词保护 | 占位符替换（内置通用 ~30 条 + 用户交互补充），翻译后还原 |
-| 输出格式 | Excel 工作簿（ID / 章 / 节 / 原文 / 各语言翻译列）|
-| 正文校验 | 强制覆盖率检查，< 80% 终止流程不输出 |
-| 标题保留 | 标题行始终作为每条需求正文的一部分输出（供覆盖率校验 + 上下文追溯）；空正文标题行自动合成 |
-| 默认交互 | 默认进入交互模式，依次询问用户目标语言 / 翻译引擎 / 专有名词补充；仅当用户明确要求或传入 `--no-input` 才跳过 |
-| 表格行过滤 | D1/D2/D3 标题匹配时拒绝含 `;`（单元格分隔符）、`(`（单位注释）、尾部" - 短词"（标签/值对）、或含数字的行，避免把 PDF 表格行误识别为章节标题 |
+| Dimension | Scope |
+|-----------|-------|
+| Input | Single PDF file, or a directory of PDFs (batch) |
+| Structure type | Hierarchically-numbered documents (contracts, specs, regulations, bids, standards…) |
+| Headers / footers | Auto-detect repeating blocks (≥ 75% of pages) and strip them |
+| Scanned PDFs | Probe, then call `ocrmypdf --language <config>` for OCR fallback (lazy import, not a hard dependency) |
+| Hierarchy markers | `Art. 1º` / `CAPÍTULO` / `SEÇÃO` / `§ 1º` / `I.` / `1.` / `1.2` / `1.2.1` / `（1）` / `(a)` / `•` / `(1)` / roman numerals / circled numbers |
+| Source language | pysbd (optional) + built-in regex fallback; pt / en / es / fr / de / zh / ja / ko each have dedicated segmentation rules |
+| Target language | Any googletrans / Claude language code (2 columns per run) |
+| Translation engine | Google Translate (direct) or Agent (Claude translates on its own) |
+| Proper-noun protection | Placeholder substitution (built-in ~30 generic terms + user-supplied additions), restored after translation |
+| Output format | Excel workbook (ID / 章 / 节 / 需求原文 / per-language translation columns) |
+| Body validation | Mandatory coverage check; < 80% halts the pipeline with no output |
+| Title preservation | Heading lines are always emitted as part of each requirement's body (for coverage audit + context tracing); empty-body headings are auto-synthesized |
+| Default interaction | Interactive by default — prompts for target language / translation engine / proper-noun additions; only skips when the user explicitly asks or passes `--no-input` |
+| Table-row filtering | When matching a `D1/D2/D3` heading, rejects rows containing `;` (cell separator), `(` (unit annotation), a trailing " - short word" (label/value pair), or digits — avoids misreading PDF table rows as section headings |
 
-### ❌ NOT supported（不在范围）
+### ❌ NOT supported (out of scope)
 
-- ❌ 图像、流程图、扫描版图纸内嵌文字的识别（仅正文文本）
-- ❌ 手写件 / 极低质量扫描件 / 严重歪斜的 OCR
-- ❌ 跨文档比对、汇总、差异提取
-- ❌ 自动填回评分表、合规矩阵、投标响应
-- ❌ 非文本类 PDF（纯图片册、CAD 导出的位图 PDF）
-- ❌ 实时协作 / 多人并发编辑
-- ❌ 结构化语义理解（不识别"shall / must" 等模态词的合同义务强度）
-- ❌ 法律效力的翻译认证（机器翻译仅供参考，不作法律背书）
+- ❌ Recognizing text embedded in images, flowcharts, or scanned drawings (body text only)
+- ❌ Handwritten documents / very low quality scans / heavily skewed OCR
+- ❌ Cross-document diffing, aggregation, or delta extraction
+- ❌ Auto-filling scorecards, compliance matrices, or bid responses
+- ❌ Non-text PDFs (pure image albums, rasterized CAD PDFs)
+- ❌ Real-time collaboration / concurrent multi-user editing
+- ❌ Structured semantic understanding (does not classify deontic modality like "shall / must")
+- ❌ Legally-certified translation (machine output is reference-only, no legal warranty)
 
-### ⚠️ 使用前提
+### ⚠️ Prerequisites
 
-- PDF 须为 **可选取文本** 的数字版，或扫描分辨率 ≥ 200 dpi
-- 须能访问 Google Translate API（直连或境外代理），除非使用 Agent 模式
-- 运行环境：Python 3.9+；所需依赖 `pdfplumber`、`openpyxl`、
-  `googletrans==4.0.0-rc1`（前两者必装，googletrans 仅 Google 引擎需要）
-- 大文件（> 100 页）处理时间会显著增长；OCR 回退每页约 1-5 秒
+- PDF must be **text-selectable** digital, or scanned at ≥ 200 dpi
+- Access to the Google Translate API (direct or via overseas proxy) is required unless you use Agent mode
+- Runtime: Python 3.9+; dependencies `pdfplumber`, `openpyxl`,
+  `googletrans==4.0.0-rc1` (the first two are required; googletrans is only needed for the Google engine)
+- Large files (> 100 pages) grow significantly in processing time; OCR fallback runs ~1-5 s per page
 
 ---
 
-## 3. 架构 / Pipeline
+## 3. Architecture / Pipeline
 
 ```
 PDF file
@@ -98,124 +91,125 @@ ParseResult  { roots, items, meta, raw_rows }
    │
    ▼
 [005_excel_generator]  Excel workbook
-        ID | 章 | 节 | 需求原文 | 英文翻译 | 中文翻译 | …
+        ID | 章 | 节 | 需求原文 | English | 中文 | …
 ```
 
-### 关键不变式 / Key invariants
+### Key invariants
 
-1. `raw_text` 到 `items['content']` 的正文覆盖率 **不得低于 80%**（硬阈值）。
-2. 每页以 `__PAGE_N__` 哨兵标记，确保页码归属性在剥离页眉后仍可恢复。
-3. 每个需求行包含完整 `hierarchy_path`（如 `1 Sistemas > 1.2 MDC > 1.2.1 Condições Gerais`）。
+1. Body coverage from `raw_text` into `items['content']` **must never fall below 80%** (hard threshold).
+2. Every page is marked with a `__PAGE_N__` sentinel so page attribution survives header stripping.
+3. Every requirement row carries a full `hierarchy_path` (e.g. `1 Sistemas > 1.2 MDC > 1.2.1 Condições Gerais`).
 
 ---
 
-## 4. 项目结构 / Project Structure
+## 4. Project Structure
 
 ```
 DIaT/
 ├── 007_config/
-│   └── config.py               # 全局配置 + 语言缩写表 + VALIDATION 阈值
+│   └── config.py               # global config + language-abbreviation table + VALIDATION thresholds
 ├── 003_pdf_extractor/
-│   └── pdf_extractor.py        # 4 策略融合提取 + 重复块剥离 + OCR 回退
+│   └── pdf_extractor.py        # 4-strategy merge extraction + repeating-block stripper + OCR fallback
 ├── 001_text_splitter/
 │   └── text_splitter.py        # ChapterSectionParser + SentenceSegmenter
-├── 004_classifier/             # (已停用 — 不再从 main.py 调用)
+├── 004_classifier/             # (inactive — no longer called from main.py)
 │   └── classifier.py
 ├── 005_excel_generator/
-│   └── excel_generator.py      # Excel 输出（已删除需求分类/产品相关列）
+│   └── excel_generator.py      # Excel output (requirement-category / product columns removed)
 ├── 008_validator/
-│   └── validator.py            # assert_body_intact — 正文存活校验
+│   └── validator.py            # assert_body_intact — body-survival check
 ├── 002_translator/
 │   └── translator.py           # TranslationService (Google + Agent)
 ├── 006_main/
-│   └── main.py                 # CLI 入口 + 流程编排
+│   └── main.py                 # CLI entry point + pipeline orchestration
 ├── 006_postprocess/
 │   └── split_items_postprocess.py
-├── README.md                   # 面向用户的说明（本文件）
-└── AGENT_GUIDE.md              # 面向 orchestrator / sub-agent 的使用原则
+├── README.md                   # user-facing documentation (this file, English)
+├── README_zh.md                # user-facing documentation (Chinese)
+└── AGENT_GUIDE.md              # orchestrator / sub-agent usage principles
 ```
 
 ---
 
-## 5. 快速开始 / Quick Start
+## 5. Quick Start
 
-### 安装
+### Install
 
 ```bash
 pip install pdfplumber openpyxl googletrans==4.0.0-rc1
-# 可选（增强断句质量）：
+# optional (better segmentation):
 pip install pysbd
-# 可选（扫描件 OCR）：
-pip install ocrmypdf     # 同时需要系统安装 tesseract + ghostscript
+# optional (OCR for scanned PDFs):
+pip install ocrmypdf     # also requires system tesseract + ghostscript installed
 ```
 
-### 运行
+### Run
 
-> **默认交互模式** — 不传 `--no-input` 时，脚本会依次询问用户目标语言 / 翻译引擎 / 专有名词补充。仅在用户明确要求非交互时使用 `--no-input`。
+> **Default = interactive.** When `--no-input` is omitted, the script prompts for target language / translation engine / proper-noun additions. Pass `--no-input` only when the user explicitly wants non-interactive mode.
 
 ```bash
 cd "D:/Tool Development/Skills Development/DIaT"
 
-# 单文件 — 默认交互模式（询问语言 / 引擎 / 专有名词）
+# single file — default interactive mode (prompts for language / engine / proper nouns)
 PYTHONIOENCODING=utf-8 python 006_main/main.py "<your-file.pdf>"
 
-# 非交互模式 — 显式跳过所有提示，使用 en + zh-cn + Google
+# non-interactive — explicitly skip all prompts, use en + zh-cn + Google
 PYTHONIOENCODING=utf-8 python 006_main/main.py \
     "<your-file.pdf>" --no-input
 
-# 单文件 — 不翻译，仅提取+拆分+输出 Excel（非交互）
+# single file — extract + split + export Excel only, no translation (non-interactive)
 PYTHONIOENCODING=utf-8 python 006_main/main.py \
     "<your-file.pdf>" \
     --no-translate --json --no-input
 
-# 单文件 — 自动翻译（Google Translate，非交互）
+# single file — auto-translate (Google Translate, non-interactive)
 PYTHONIOENCODING=utf-8 python 006_main/main.py \
     "<your-file.pdf>" \
     -e google --no-input -l en,zh-cn
 
-# Agent 模式（Claude 自行读取 JSON、翻译、回写 Excel）
+# Agent mode (Claude reads the JSON, translates, writes back to Excel)
 PYTHONIOENCODING=utf-8 python 006_main/main.py \
     "<your-file.pdf>" \
     -e agent --no-input -l en,zh-cn
 
-# 批量目录（非交互）
+# batch a directory (non-interactive)
 PYTHONIOENCODING=utf-8 python 006_main/main.py ./pdfs --no-input
 ```
 
-### CLI 参数
+### CLI arguments
 
-| 参数 | 说明 |
-|------|------|
-| `input` | PDF 文件或目录 |
-| `-o, --output` | 输出目录（默认 `output_fixed/`）|
-| `--no-translate` | 跳过翻译 |
-| `--json` | 额外输出 JSON 中间产物 |
-| `-l, --lang` | 目标语言，逗号分隔（如 `en,zh-cn`）。默认 2 列（英文+中文）|
-| `-e, --engine` | 翻译引擎 `google`（默认）或 `agent` |
-| `--no-input` | **显式** 非交互模式（en + zh-cn + Google）。默认行为是交互模式，仅当用户明确要求时才传此参数 |
+| Argument | Description |
+|----------|-------------|
+| `input` | PDF file or directory path |
+| `-o, --output` | Output directory (default `output_fixed/`) |
+| `--no-translate` | Skip translation |
+| `--json` | Also emit the JSON intermediate |
+| `-l, --lang` | Target languages, comma-separated (e.g. `en,zh-cn`). Default is 2 columns (English + Chinese) |
+| `-e, --engine` | Translation engine `google` (default) or `agent` |
+| `--no-input` | **Explicit** non-interactive mode (en + zh-cn + Google). Default behavior is interactive; only pass this when explicitly asked |
 
-### 翻译语言选择规则
+### Translation language-selection rules
 
-1. **默认 2 列翻译** — Excel 输出 `需求原文` 后紧跟两列翻译列（`英文翻译` + `中文翻译`）
-2. **交互式选择** — 非 `--no-input` 模式下，脚本会询问用户选择任意两种目标语言（默认 `en,zh-cn`）
-3. **同源语言不翻译** — 若源语言与某个目标语言相同，该列保留原文，不调用翻译 API
-   - 例：原文为英文，选择 `en,zh-cn` → `英文翻译` 列显示原文，`中文翻译` 列调用 Google Translate
+1. **Default 2-column translation** — Excel emits `需求原文` followed by two translation columns (e.g. `英文翻译` + `中文翻译`)
+2. **Interactive selection** — in non-`--no-input` mode the script asks the user to pick any two target languages (default `en,zh-cn`)
+3. **Same-source skip** — if the source language equals a target language, that column keeps the original text and the translation API is not called
+   - e.g. source is English and you pick `en,zh-cn` → the `英文翻译` column shows the original, `中文翻译` calls Google Translate
 
-### 交互模式流程
+### Interactive flow
 
-非 `--no-input` 模式下，脚本会依次询问用户三项选择：
+In non-`--no-input` mode the script asks the user three questions in sequence:
 
-1. **目标语言**（默认 en + zh-cn）
-2. **翻译引擎**（默认 Google Translate）
-3. **专有名词补充**（按类别引导，默认无补充）
+1. **Target language** (default en + zh-cn)
+2. **Translation engine** (default Google Translate)
+3. **Proper-noun additions** (category-guided; defaults to none)
 
-示例交互：
+Example session:
 
 ```
 $ PYTHONIOENCODING=utf-8 python 006_main/main.py example.pdf
 
   =======================================================
-    目标翻译语言选择 / Target Language Selection
+    Target Translation Language Selection
   =======================================================
   Detected source: pt (Português)
 
@@ -228,7 +222,7 @@ $ PYTHONIOENCODING=utf-8 python 006_main/main.py example.pdf
   or press Enter for default [en,zh-cn]:
 
   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    翻译引擎选择 / Translation Engine
+    Translation Engine Selection
   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     1. Google Translate API   (default — fast, external)
     2. Agent  — Claude reads JSON, translates, writes back
@@ -236,35 +230,35 @@ $ PYTHONIOENCODING=utf-8 python 006_main/main.py example.pdf
   Enter 1 or 2 (or press Enter for default Google):
 
   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    专有名词保护 / Proper-Noun Protection
+    Proper-Noun Protection
   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-  翻译时下列类别的术语将保持原文不译：
-    [技术缩略语]   API, HTTP, HTTPS, JSON, XML, CSV, TCP, UDP, IP, VPN, … (17)
-    [国际标准组织] IEC, IEEE, ISO, ITU, ANSI, IETF, W3C                (7)
-    [网络/基础设施] RF, PLC, LAN, WAN, HAN                              (5)
-    [计量单位]     GWh, MWh, kWh, Hz, kV, kW, kVA, MVA, ms, s        (10)
-    [公司/产品名]  Google, Microsoft, Amazon, Apple                     (4)
+  The following term categories are kept verbatim during translation:
+    [technical abbreviations]  API, HTTP, HTTPS, JSON, XML, CSV, TCP, UDP, IP, VPN, … (17)
+    [standards bodies]         IEC, IEEE, ISO, ITU, ANSI, IETF, W3C                (7)
+    [network / infrastructure] RF, PLC, LAN, WAN, HAN                              (5)
+    [measurement units]        GWh, MWh, kWh, Hz, kV, kW, kVA, MVA, ms, s        (10)
+    [company / product names]  Google, Microsoft, Amazon, Apple                     (4)
 
-  以下类别暂无术语或需按本文档补充：
-     1. 人名                    6. 监管机构
-     2. 地名                    7. 法规/文档编号
-     3. 产品/项目代号            8. 行业专有术语
-     4. 公司名（本文档）         9. 岗位/职责
-    10. ＋ 新建类别…
-     0. 完成并继续
+  The following categories start empty and are filled per-document:
+     1. Person names             6. Regulatory bodies
+     2. Place names              7. Legal / document references
+     3. Product / project codes  8. Industry-specific terms
+     4. Company (this document)  9. Roles / responsibilities
+    10. ＋ Create a new category…
+     0. Done — continue to translation
 
-  请选择类别编号 (1-10 补充, 0=完成): 3
-  → [产品/项目代号] 当前为空
-    输入逗号分隔词追加 (Enter 跳过): SCADA,AMI,MDM,MDC
-    + added 4 term(s)。
+  Select a category number (1-10 to add, 0=done): 3
+  → [Product / project codes] currently empty
+    Add comma-separated terms (Enter to skip): SCADA,AMI,MDM,MDC
+    + added 4 term(s).
 
-  请选择类别编号 (1-10 补充, 0=完成): 4
-  → [公司名（本文档）] 当前为空
-    输入逗号分隔词追加 (Enter 跳过): CPFL,Enel
-    + added 2 term(s)。
+  Select a category number (1-10 to add, 0=done): 4
+  → [Company (this document)] currently empty
+    Add comma-separated terms (Enter to skip): CPFL,Enel
+    + added 2 term(s).
 
-  请选择类别编号 (1-10 补充, 0=完成): 0
-  ✓ 专有名词保护配置完成。共 2 个类别，6 个术语。
+  Select a category number (1-10 to add, 0=done): 0
+  ✓ Proper-noun protection configured. 2 categories, 6 terms total.
 
   [3/4] Translating (engine=google, languages=['en', 'zh-cn'])...
   ...
@@ -272,39 +266,37 @@ $ PYTHONIOENCODING=utf-8 python 006_main/main.py example.pdf
 
 ---
 
-## 6. 后续方向 / Roadmap
+## 6. Roadmap
 
-- [ ] 支持命令行指定源语言（跳过自动检测）
-- [ ] 引入 docx / odt 输出格式
-- [ ] 多段落合并策略优化（当前按句切分）
-- [ ] 对其他语种官方文档的泛化适配（西班牙/葡萄牙/安哥拉/…）
-- [ ] 增量处理：同一 PDF 修订版差异提取
+- [ ] Allow specifying the source language on the CLI (skip auto-detection)
+- [ ] Add docx / odt output formats
+- [ ] Improve the multi-paragraph merge strategy (currently sentence-based)
+- [ ] Broader adaptation to official documents in other languages (Spanish / Portuguese / Angolan / …)
+- [ ] Incremental processing: extract deltas between two revisions of the same PDF
 
 ---
 
-## 7. 正文不丢弃规范 / Body-Preservation Guarantee
+## 7. Body-Preservation Guarantee
 
-> **正文被丢弃现象，这点是绝对不可容忍的。**
+Silent body loss is **intolerable** — `008_validator` runs unconditionally before the Excel is generated:
 
-`008_validator` 在 Excel 生成前强制执行：
+1. Walk `raw_text` line by line, skipping header/footer/toc rows → produce `body_lines`.
+2. Normalize each `item['content']` into a word multiset.
+3. Greedy match: `coverage = Σ covered_words / Σ body_words`.
+4. Coverage `< 80%` → raise `BodyLossError`, **halt the pipeline, no Excel is emitted**.
+5. Uncovered lines are written to `{prefix}_orphans.json` for triage.
 
-1. 把 `raw_text` 按行遍历，跳过页眉/页脚/目录行，得到 `body_lines`。
-2. 把每个 `item['content']` 归一化为词的多重集合（multiset）。
-3. 贪心比对：`coverage = Σ covered_words / Σ body_words`。
-4. 覆盖率 `< 80%` → 抛 `BodyLossError`，**终止流程，不输出 Excel**。
-5. 未覆盖行写入 `{prefix}_orphans.json` 供排查。
+Lexical normalization folds all whitespace to a single space before splitting into tokens, so pdfplumber-driven line-break indentation differences are not miscounted as body loss.
 
-词法归一化规则：将所有空白字符折叠为一个空格，再 split 为词元。这保证了 pdfplumber 的断行缩进差异不会误计为正文丢失。
-
-阈值可在 `007_config/config.py::VALIDATION` 中调整：
+The thresholds live in `007_config/config.py::VALIDATION`:
 
 ```python
 VALIDATION = {
-    'min_char_coverage': 0.80,   # 最低正文覆盖率
+    'min_char_coverage': 0.80,   # minimum body survival rate
     'min_word_coverage': 0.85,
     'write_orphans': True,
-    'sentence_target_min': 50,    # 单句最短字符数
-    'sentence_target_max': 500,   # 单句最长字符数
+    'sentence_target_min': 50,    # min chars per sentence
+    'sentence_target_max': 500,   # max chars per sentence
 }
 ```
 
@@ -314,94 +306,101 @@ VALIDATION = {
 
 © **Aggre-Cloud 聚云科技** — <https://www.acdatech.com>
 
-本工具由 Aggre-Cloud 聚云科技 开发并内部使用。
 Developed and maintained by Aggre-Cloud (聚云科技).
 
 ---
 
-## 9. 专有名词保护 / Proper-Noun Protection
+## 9. Proper-Noun Protection
 
-翻译前，以下词类会被占位符 `__PROPER_<uuid>__` 替换，使 Google
-Translate 保持其原样，翻译完成后再还原：
+Before translation, the following term classes are replaced by placeholders
+`__PROPER_<uuid>__` so that Google Translate leaves them untouched, and are
+restored afterwards:
 
-`007_config/config.py::DO_NOT_TRANSLATE` 是**分类词典**（`category → {label, items}`），
-内置种子只放**跨行业通用术语**（~30 条），按类别组织：
+`007_config/config.py::DO_NOT_TRANSLATE` is a **categorized dictionary**
+(`category → {label, items}`); the built-in seed contains only **cross-industry
+generic terms** (~30), organized by category:
 
-- 技术缩略语（API、HTTP、HTTPS、JSON、XML、CSV、TCP、UDP、IP、SSH、…）
-- 国际标准组织（IEC、IEEE、ISO、ITU、ANSI、IETF、W3C）
-- 网络 / 基础设施（RF、PLC、LAN、WAN、HAN）
-- 计量单位（GWh、MWh、kWh、Hz、kV、kW、kVA、MVA、ms、s）
-- 通用公司 / 产品名（Google、Microsoft、Amazon、Apple）
+- Technical abbreviations (API, HTTP, HTTPS, JSON, XML, CSV, TCP, UDP, IP, SSH, …)
+- Standards bodies (IEC, IEEE, ISO, ITU, ANSI, IETF, W3C)
+- Network / infrastructure (RF, PLC, LAN, WAN, HAN)
+- Measurement units (GWh, MWh, kWh, Hz, kV, kW, kVA, MVA, ms, s)
+- Generic company / product names (Google, Microsoft, Amazon, Apple)
 
-以下为**空类别**，在交互步骤 3 中按本文档实际情况逐一补充：
-人名、地名、产品/项目代号、公司名（本文档）、监管机构、法规/文档编号、
-行业专有术语、岗位/职责，并可在运行时**新建任意类别**。
+The following are **empty categories** filled during interactive step 3 on a
+per-document basis: person names, place names, product / project codes, company
+(this document), regulatory bodies, legal / document references, industry-specific
+terms, roles / responsibilities — and the user may **create arbitrary new
+categories** at runtime.
 
-> 类别集合是**开放**的：行业特定术语（如电力的 `SCADA/AMI/MDM/MDC`、医疗的
-> 药品名、法律的法院名）不属于版本化种子，而是用户在处理具体文档时按对应
-> 类别补充——这是工具跨行业泛化的核心机制。
+> The category set is **open**: industry-specific terms (e.g. `SCADA/AMI/MDM/MDC`
+> for power utilities, drug names for healthcare, court names for law) are
+> **not** versioned seed — the user fills them under the matching category while
+> processing a concrete document. This is the tool's core mechanism for
+> cross-industry generalization.
 
-交互模式下，步骤 3 会**按类别引导**用户补充，并即时显示已填数量，而不是让用户
-凭空罗列。
+In interactive mode, step 3 **guides the user category by category**,
+immediately showing the running count, instead of asking them to list terms
+from scratch.
 
-**实现机制**（`002_translator/translator.py`）：
+**Mechanism** (`002_translator/translator.py`):
 
-```text
-原文
+```
+original
   │
   ▼
-_protect_proper_nouns()        ← 用占位符替换 DO_NOT_TRANSLATE 词
+_protect_proper_nouns()        ← replace DO_NOT_TRANSLATE terms with placeholders
   │
   ▼
 Google Translate API
   │
   ▼
-_restore_proper_nouns()        ← 把占位符还原为原词
+_restore_proper_nouns()        ← replace placeholders back with original terms
   │
   ▼
-译文
+translation
 ```
 
-词表按长度降序排列，确保 `Advanced Metering` 优先于 `AMI` 被匹配。
+The term list is sorted by descending length so that `Advanced Metering`
+is matched before `AMI`.
 
 ---
 
-## 10. Agent 模式 / Agent Translation Mode
+## 10. Agent Translation Mode
 
-Agent 模式下，脚本**不调用 Google Translate**，而是：
+In Agent mode the script **does not call Google Translate**; instead it:
 
-1. 写 `*_agent_queue.json`（含 `source_language`、`target_languages`、
-   `requirements`、`extra_do_not_translate`）
-2. Agent（Claude）读取 JSON，逐条翻译
-3. Agent 调用 `write_translations_to_excel()` 回写 Excel
+1. Writes `*_agent_queue.json` (containing `source_language`, `target_languages`,
+   `requirements`, `extra_do_not_translate`)
+2. The Agent (Claude) reads the JSON and translates each requirement
+3. The Agent calls `write_translations_to_excel()` to write the results back
 
-**适用场景**：
+**When to use it**:
 
-- Google Translate 不可用（网络限制）
-- 需要更高质量的翻译（Claude 理解上下文）
-- 需要保持术语一致性（Claude 可参考全文）
+- Google Translate is not reachable (network restriction)
+- Higher translation quality is needed (Claude understands context)
+- Terminology consistency matters (Claude can reference the full document)
 
-**注意**：Agent 模式下，`extra_do_not_translate` 列表同样生效，
-agent 在翻译前必须用占位符替换这些词（与 Google 路径相同的
-`_protect_proper_nouns` / `_restore_proper_nouns` 模式）。
-
----
-
-## 11. 输出格式 / Output Format
-
-Excel 工作表 `Requirements` 列定义：
-
-| 列 | 字段 | 说明 |
-|----|------|------|
-| A | ID | REQ-0001 起递增 |
-| B | 章 | 顶层章节号 + 标题 |
-| C | 节 | 子章节号 + 标题 |
-| D | 需求原文 | 源语言完整句 |
-| E | {lang1}翻译 | 第一目标语言（如 `英文翻译`） |
-| F | {lang2}翻译 | 第二目标语言（如 `中文翻译`） |
-
-- 列 E / F 的标题由目标语言动态决定
-- 若源语言匹配某目标语言，该列保留原文（不调用 API）
-- 列宽：`[10, 35, 35, 65, 65, 65]`
+**Note**: in Agent mode the `extra_do_not_translate` list is likewise applied;
+the agent must substitute the same placeholders before translation (the same
+`_protect_proper_nouns` / `_restore_proper_nouns` pattern used by the Google path).
 
 ---
+
+## 11. Output Format
+
+Excel worksheet `Requirements` column definition:
+
+| Column | Field | Description |
+|--------|-------|-------------|
+| A | ID | REQ-0001, incrementing |
+| B | 章 | Top-level chapter number + title |
+| C | 节 | Sub-chapter number + title |
+| D | 需求原文 | Full sentence in the source language |
+| E | {lang1} translation | First target language (e.g. `英文翻译`) |
+| F | {lang2} translation | Second target language (e.g. `中文翻译`) |
+
+- Columns E / F headers are chosen dynamically from the target languages
+- When the source language matches a target language, that column keeps the original text (no API call)
+- Column widths: `[10, 35, 35, 65, 65, 65]`
+```
+
