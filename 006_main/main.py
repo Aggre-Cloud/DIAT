@@ -484,15 +484,18 @@ class RequirementItemizationSkill:
 
     @staticmethod
     def _ask_target_languages(detected_source=None):
-        """Interactive prompt — ask user to pick any 2 target languages.
+        """Interactive prompt — English is fixed; user picks ONE more.
 
-        Default: ['en', 'zh-cn'] (English + Simplified Chinese).
-        If one of the picks matches the source language, that column keeps
-        the original text (no translation API call).
+        English (`en`) is always one of the targets (project default).
+        The user only chooses the *second* language.  Default second
+        language: `zh-cn` (Simplified Chinese).
+
+        If one of the targets matches the source language, that column
+        keeps the original text (no translation API call).
 
         Returns (final_targets, source_in_targets) where:
-          final_targets    — list of 2 language codes to translate to
-          source_in_targets — True if source language is among the picks
+          final_targets    — ['en', <user's choice>]
+          source_in_targets — True if source language is among the targets
         """
         print('\n' + '=' * 55)
         print('  目标翻译语言选择 / Target Language Selection')
@@ -500,43 +503,37 @@ class RequirementItemizationSkill:
         if detected_source and detected_source in RequirementItemizationSkill.AVAILABLE_LANGS:
             print(f'  Detected source: {detected_source} '
                   f'({RequirementItemizationSkill.AVAILABLE_LANGS[detected_source]})')
-        print('\n  Choose TWO languages for the translation columns.')
-        print('  Default: en + zh-cn')
+        print('\n  English (en) is always a target.')
+        print('  Choose ONE additional language for the second column.')
+        print('  Default: zh-cn')
         for code, name in RequirementItemizationSkill.AVAILABLE_LANGS.items():
+            if code == 'en':
+                continue  # English is fixed, don't offer it as a choice
             marker = ' ← source' if code == detected_source else ''
             print(f'    {code:8s} — {name}{marker}')
         print()
 
         user_input = input(
-            '  Enter 2 language codes (comma-separated) '
-            'or press Enter for default [en,zh-cn]: '
+            '  Enter 1 language code (or press Enter for default zh-cn): '
         ).strip().lower()
 
         if not user_input:
-            targets = ['en', 'zh-cn']
+            second = 'zh-cn'
         else:
-            codes = [c.strip() for c in user_input.split(',')]
-            valid = [c for c in codes
-                     if c in RequirementItemizationSkill.AVAILABLE_LANGS]
-            # Deduplicate while preserving order
-            seen = set()
-            dedup = []
-            for c in valid:
-                if c not in seen:
-                    seen.add(c)
-                    dedup.append(c)
-            if len(dedup) >= 2:
-                targets = dedup[:2]
-            elif len(dedup) == 1:
-                # give a different default second language
-                fallback = ('zh-cn' if dedup[0] != 'zh-cn' else 'en')
-                targets = [dedup[0], fallback]
-                print(f'  Only one valid code given — adding {fallback} '
-                      f'as the second language.')
+            code = user_input.split(',')[0].strip()
+            if code in RequirementItemizationSkill.AVAILABLE_LANGS and code != 'en':
+                second = code
+            elif code == 'en':
+                print('  /!\\  English (en) is already a target — '
+                      'pick a different language.  Falling back to zh-cn.')
+                second = 'zh-cn'
             else:
-                print(f'  /!\\  Invalid codes {codes!r}, '
-                      f'falling back to en,zh-cn.')
-                targets = ['en', 'zh-cn']
+                print(f'  /!\\  Invalid code {code!r}, '
+                      f'falling back to zh-cn.')
+                second = 'zh-cn'
+
+        targets = ['en', second]
+        print(f'  → Targets: en + {second}')
 
         source_in_targets = (detected_source in targets)
         if source_in_targets:
@@ -544,8 +541,6 @@ class RequirementItemizationSkill:
                     .get(detected_source, detected_source))
             print(f'  ⚠ Source is {detected_source} ({name}) → '
                   f'the {name} column will show the original text.')
-        else:
-            skipped = False
 
         return targets, source_in_targets
 
@@ -885,13 +880,14 @@ def main():
     parser.add_argument('--json', action='store_true',
                         help='Save JSON intermediate output')
     parser.add_argument('-l', '--lang', default=None,
-                        help='Target languages, comma-separated (e.g. en,zh-cn). '
+                        help='The NON-English target language (e.g. zh-cn, pt). '
+                             'English (en) is always added automatically. '
                              'If not set, will prompt interactively.')
     parser.add_argument('-e', '--engine', default=None,
                         choices=['google', 'agent'],
                         help='Translation engine (default: prompt or google).')
     parser.add_argument('--no-input', action='store_true',
-                        help='Non-interactive mode: use en,zh-cn + Google.')
+                        help='Non-interactive mode: use en + zh-cn + Google.')
     parser.add_argument('--install-deps', action='store_true',
                         help='Install missing third-party packages from '
                              'requirements.txt, then exit.  In a non-TTY '
@@ -930,10 +926,18 @@ def main():
         parser.error('the following arguments are required: input '
                      '(unless --install-deps is used)')
 
-    # Parse target languages from CLI or None (will prompt)
+    # Parse target languages from CLI or None (will prompt).
+    # English (en) is always one target; -l supplies the SECOND one.
     target_languages = None
     if args.lang:
-        target_languages = [c.strip() for c in args.lang.split(',')]
+        code = args.lang.split(',')[0].strip().lower()
+        if code == 'en':
+            print('  /!\\  English (en) is already a target — '
+                  '-l expects the NON-English language.  '
+                  'Use -l <lang> (e.g. -l pt).  Falling back to interactive prompt.')
+            target_languages = None
+        else:
+            target_languages = ['en', code]
     if args.no_input and target_languages is None:
         target_languages = ['en', 'zh-cn']
 

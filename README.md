@@ -224,7 +224,7 @@ python -m 006_main.main "<your-file.pdf>" -e google --no-input -l en,zh-cn
 | `-o, --output` | Output directory (default `output/`) |
 | `--no-translate` | Skip translation |
 | `--json` | Also emit the JSON intermediate |
-| `-l, --lang` | Target languages, comma-separated (e.g. `en,zh-cn`). Default is 2 columns (English + Chinese) |
+| `-l, --lang` | The NON-English target language (e.g. `pt`, `zh-cn`). English is always added automatically. Default 2 columns (English + Chinese) |
 | `-e, --engine` | Translation engine `google` (default) or `agent` |
 | `--no-input` | **Explicit** non-interactive mode (en + zh-cn + Google). Default behavior is interactive; only pass this when explicitly asked |
 | `--install-deps` | Install missing third-party packages from `requirements.txt`, then exit. Non-interactive when stdin is not a TTY (agent / pipe); asks for confirmation in a TTY |

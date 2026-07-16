@@ -221,7 +221,7 @@ python -m 006_main.main "<your-file.pdf>" -e google --no-input -l en,zh-cn
 | `-o, --output` | 输出目录（默认 `output/`）|
 | `--no-translate` | 跳过翻译 |
 | `--json` | 额外输出 JSON 中间产物 |
-| `-l, --lang` | 目标语言，逗号分隔（如 `en,zh-cn`）。默认 2 列（英文+中文）|
+| `-l, --lang` | 非英语目标语言（如 `pt`、`zh-cn`），英文自动加入。默认 2 列（英文+中文）|
 | `-e, --engine` | 翻译引擎 `google`（默认）或 `agent` |
 | `--no-input` | **显式** 非交互模式（en + zh-cn + Google）。默认行为是交互模式，仅当用户明确要求时才传此参数 |
 | `--install-deps` | 从 `requirements.txt` 安装缺包随后退出。非 TTY（agent / 管道）下不弹窗；TTY 下询问确认 |

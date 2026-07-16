@@ -23,7 +23,7 @@ always prompt the user explicitly:
 
 | # | Question | Default |
 |---|----------|---------|
-| (a) | **Pick TWO target languages** — Excel will have two translation columns | `en` (English) + `zh-cn` (Simplified Chinese) |
+| (a) | **Pick ONE non-English target language** — English (`en`) is always a target by default; you only choose the *second* language. Excel will have two translation columns: English + your pick | `zh-cn` (Simplified Chinese) |
 | (b) | **Pick translation engine** — `google` (Translate API) or `agent` (Claude self-translates via JSON queue) | `google` |
 | (c) | **Review / add proper-noun terms** by **category** — the prompt shows each category's existing seeds and lets you fill: person name, place name, product/project code, company (this document), regulatory body, legal/doc reference, industry-specific term, role/title, plus a "new category" entry for anything else | none (use the built-in ~30-term generic seed list) |
 
