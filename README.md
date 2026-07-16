@@ -278,8 +278,6 @@ DIaT/
 │   └── pdf_extractor.py        # 4-strategy merge extraction + repeating-block stripper + OCR fallback
 ├── 001_text_splitter/
 │   └── text_splitter.py        # ChapterSectionParser + SentenceSegmenter
-├── 004_classifier/             # (inactive — no longer called from main.py)
-│   └── classifier.py
 ├── 005_excel_generator/
 │   └── excel_generator.py      # Excel output (localized headers; English + one user language)
 ├── 008_validator/
@@ -288,8 +286,6 @@ DIaT/
 │   └── translator.py           # TranslationService (Google + Agent)
 ├── 006_main/
 │   └── main.py                 # CLI entry point + pipeline orchestration
-├── 006_postprocess/
-│   └── split_items_postprocess.py
 ├── sample doc/                 # example PDFs (multi-language) for testing
 ├── README.md                   # this file — user-facing docs (English)
 ├── README_zh.md                # user-facing docs (Chinese)

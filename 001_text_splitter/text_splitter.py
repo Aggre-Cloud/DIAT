@@ -14,14 +14,9 @@ New components
    others                     → generic regex
    ALL abbreviation tables hardcoded in 007_config/config.py::ABBR.
 
-Legacy API (kept verbatim for 006_postprocess & other callers):
-  extract_requirements(text)              -> list[dict]
-  extract_requirements_with_json(text)    -> (requirements, json_data)
-  clean_pdf_text / normalize_numbering / is_non_requirement /
-  validate_requirement / batch_validate  / save_json_output
-
-New top-level API:
+Top-level API:
   parse_text(raw_text) -> ParseResult(roots, items, meta)
+  save_json_output(json_data, output_file) -> str
 """
 from __future__ import annotations
 
@@ -740,133 +735,10 @@ def parse_text(raw_text: str, *, lang: str = 'pt',
 
 
 # --------------------------------------------------------------------------- #
-#  6. Legacy wrapper API  (preserved for 006_postprocess / external callers)
+#  JSON output helper
 # --------------------------------------------------------------------------- #
-
-def _legacy_clean_pdf_text(text: str) -> str:
-    """Original aggressive cleaner — kept for legacy paths.
-
-    Only generic document-meta patterns here.  Do NOT add customer /
-    project / document-specific tokens.
-    """
-    text = re.sub(r'Título do Documento:\s*\n', '', text)
-    text = re.sub(r'Definições do Projeto de\s*\n', '', text)
-    text = re.sub(r'N\.º Documento\s*\n', '', text)
-    text = re.sub(r'Página\s+\d+\s+de\s+\d+\s*\n', '', text)
-    text = re.sub(r'Classificação:\s*\w+\s*\n', '', text)
-    text = re.sub(r'Controle de Revisão\s*\n', '', text)
-    text = re.sub(r'Revisão\s+Data\s+Item\s+Descrição das Alterações\s*\n',
-                  '', text)
-    text = re.sub(r'1\.0\s+\d{2}/\d{2}/\d{4}.*?\n', '', text)
-    text = re.sub(r'Elaborado por:.*?\n', '', text)
-    text = re.sub(r'Verificado por:.*?\n', '', text)
-    text = re.sub(r'Aprovado por:.*?\n', '', text)
-    text = re.sub(r'\.{5,}', '', text)
-    text = re.sub(r'^\d+\.?\d*\s*$', '', text, flags=re.MULTILINE)
-    text = re.sub(r'\f', '', text)
-    text = re.sub(r'(?<=[a-zà-ú])\n(?=[a-zà-ú])', ' ', text, flags=re.IGNORECASE)
-    text = re.sub(r'[ \t]+', ' ', text)
-    text = re.sub(r'\n{3,}', '\n\n', text)
-    return text.strip()
-
-
-def extract_requirements_with_json(text: str, output_json=None):
-    """Legacy wrapper. Returns (requirements, json_data) for compatibility."""
-    result = parse_text(text)
-    json_data = {
-        'version': '3.0',
-        'metadata': result.meta,
-        'requirements': result.items,
-    }
-    if output_json:
-        save_json_output(json_data, output_json)
-    return result.items, json_data
-
-
-def extract_requirements(text: str) -> list[dict]:
-    return parse_text(text).items
-
 
 def save_json_output(json_data, output_file):
     with open(output_file, 'w', encoding='utf-8') as f:
         json.dump(json_data, f, ensure_ascii=False, indent=2)
     return output_file
-
-
-def clean_pdf_text(text):
-    return _legacy_clean_pdf_text(text)
-
-
-def normalize_numbering(text):
-    text = re.sub(r'^(\d+)\.\s*', r'\1. ', text, flags=re.MULTILINE)
-    text = re.sub(r'^([一二三四五六七八九十]+)[、\.]', r'\1、', text,
-                  flags=re.MULTILINE)
-    text = re.sub(r'^(\d+\.)\s+', r'\1 ', text, flags=re.MULTILINE)
-    return text
-
-
-def is_non_requirement(text):
-    try:
-        kw = _cfg().NON_REQUIREMENT_KEYWORDS
-    except Exception:
-        kw = []
-    if len(text) < 30:
-        return True
-    tl = text.lower()
-    for k in kw:
-        if tl.startswith(k) and len(text) < 150:
-            return True
-    if re.match(r'^\d+\s*/\s*\d+\s*$', text):
-        return True
-    if re.match(r'^página\s+\d+\s+de\s+\d+', tl):
-        return True
-    return False
-
-
-def validate_requirement(req):
-    warnings, errors = [], []
-    content = req.get('content', '') if isinstance(req, dict) else ''
-    if len(content) < 50:
-        errors.append(f'Content too short ({len(content)} chars)')
-    if len(content) > 2000:
-        warnings.append(f'Content very long ({len(content)} chars)')
-    return {'is_valid': not errors, 'errors': errors, 'warnings': warnings}
-
-
-def batch_validate(requirements):
-    for r in requirements:
-        r['validation'] = validate_requirement(r)
-        r['is_valid'] = r['validation']['is_valid']
-    return requirements
-
-
-def batch_calculate_confidence(requirements):
-    for r in requirements:
-        r['confidence'] = 0.0
-    return requirements
-
-
-def calculate_confidence(req):
-    return 0.0
-
-
-def to_json_structure(requirements, document=None):
-    return {
-        'version': '2.0',
-        'metadata': {'total_requirements': len(requirements)},
-        'document': document,
-        'requirements': requirements,
-    }
-
-
-def clean_text(text):
-    return re.sub(r'\s+', ' ', text).strip()
-
-
-def find_content_start(text):
-    if '1.1' in text:
-        m = re.search(r'1\.1\.', text)
-        if m:
-            s = text.rfind('1. OBJETIVOS', 0, m.start())
-            return s if s >= 0 else m.start()
-    return 0

@@ -250,8 +250,6 @@ DIaT/
 │   └── pdf_extractor.py        # 4 策略融合提取 + 重复块剥离 + OCR 回退
 ├── 001_text_splitter/
 │   └── text_splitter.py        # ChapterSectionParser + SentenceSegmenter
-├── 004_classifier/             # (已停用 — 不再从 main.py 调用)
-│   └── classifier.py
 ├── 005_excel_generator/
 │   └── excel_generator.py      # Excel 输出（表头本地化；英文 + 一种用户语言）
 ├── 008_validator/
@@ -260,8 +258,6 @@ DIaT/
 │   └── translator.py           # TranslationService (Google + Agent)
 ├── 006_main/
 │   └── main.py                 # CLI 入口 + 流程编排
-├── 006_postprocess/
-│   └── split_items_postprocess.py
 ├── sample doc/                 # 多语言示例 PDF（供测试）
 ├── README.md                   # 面向用户的说明（English）
 ├── README_zh.md                # 面向用户的说明（中文，本文件）

@@ -138,111 +138,11 @@ def get_do_not_translate_flat() -> list[str]:
     return flat
 
 
-# Requirement classification keywords
-CATEGORY_KEYWORDS = {
-    'Functional': ['funcional', 'função', 'feature', 'capacidade', 'operação', 'funcionalidade'],
-    'Performance': ['desempenho', 'performance', 'velocidade', 'tempo', 'latência', 'throughput'],
-    'Interface': ['interface', 'integração', 'interoperabilidade', 'API', 'protocolo', 'conexão'],
-    'Security': ['segurança', 'security', 'proteção', 'criptografia', 'autenticacão', 'proteção'],
-    'Hardware': ['hardware', 'medidor', 'dispositivo', 'equipamento', 'módulo', 'componente'],
-    'Software': ['software', 'sistema', 'aplicativo', 'programa', 'firmware', 'aplicação'],
-    'Communication': ['comunicação', 'telecom', 'rede', 'wireless', 'radio', 'WISUN', 'Wi-SUN'],
-    'Data': ['dados', 'data', 'banco de dados', 'database', 'armazenamento', 'registro'],
-    'Testing': ['teste', 'test', 'verificação', 'validação', 'certificação', 'inspeção'],
-    'Documentation': ['documentação', 'document', 'manual', 'relatório', 'certificado', 'guia'],
-    'Service': ['serviço', 'service', 'suporte', 'manutenção', 'treinamento', 'assistência'],
-    'Other': []
-}
-
-# Special requirement keywords
-SPECIAL_KEYWORDS = [
-    # Mandatory
-    'obrigatório', 'compulsório', 'mandatório', 'essencial', 'crítico',
-    'urgente', 'prioritário', 'fundamental', 'indispensável',
-    'must', 'shall', 'mandatory', 'required', 'critical', 'essential',
-    # Integration
-    'integração', 'interoperabilidade', 'compatibilidade', 'conformidade',
-    # Certification
-    'certificação', 'homologação',
-    # Security
-    'segurança', 'proteção', 'backup', 'redundância', 'failover',
-    'disponibilidade', 'confiabilidade',
-    # Performance
-    'desempenho', 'especificação técnica', 'requisito', 'restrição'
-]
-
-# Product related keywords
-PRODUCT_KEYWORDS = [
-    # Device
-    'medidor', 'meter', 'dispositivo', 'equipamento', 'módulo', 'hardware',
-    # System
-    'AMI', 'AMM', 'MDM', 'MDC', 'NMS', 'SCADA', 'sistema', 'software',
-    # Network
-    'WISUN', 'Wi-SUN', 'telecom', 'comunicação', 'rede', 'wireless',
-    # Interface
-    'concentrador', 'gateway', 'roteador', 'switch', 'servidor',
-    'banco de dados', 'database', 'API', 'interface', 'protocolo'
-]
-
-# Non-requirement content filter keywords.
-# These are *generic* scraping/metadata tokens only.  Do NOT add
-# customer-, project-, region-, or document-specific terms here.
-NON_REQUIREMENT_KEYWORDS = [
-    'document title', 'table of contents', 'index',
-    'classification', 'introduction', 'objective', 'scope', 'definitions',
-    'abbreviations', 'references', 'annexes', 'appendix', 'figure', 'table',
-    'prepared by', 'verified by', 'approved by', 'version', 'revision',
-    # Romance-language equivalents (kept generic)
-    'título do documento', 'sumário', 'índice', 'página',
-    'classificação', 'introdução', 'objetivo', 'escopo', 'definições',
-    'abreviações', 'referências', 'anexos', 'apêndice', 'figura', 'tabela',
-    'elaborado por', 'verificado por', 'aprovado por', 'versão', 'revisão',
-]
-
 # Excel output config
 EXCEL_CONFIG = {
-    'column_widths': [12, 20, 20, 20, 12, 70, 12, 70, 70, 8, 20],
     'header_color': '4472C4',
-    'translation_header_color': '70AD47',
-    'validation_header_color': 'FF6B6B',
     'row_height': 60
 }
-
-# ============================================================================
-# NEW: Hierarchical decomposition configuration
-# ============================================================================
-
-# Regex pattern for matching multi-level numbering (from user's requirement)
-NUMBERING_PATTERN = r'^(\d+\.\d+\.\d+|\d+\.\d+|\d+|[一二三四五六七八九十]+|（[一二三四五六七八九十]+）|（\d+）|[①②③④⑤⑥⑦⑧⑨⑩])[.、\s]*'
-
-# Hierarchical levels mapping
-HIERARCHY_LEVELS = {
-    1: 'chapter',    # 章 - Top level (e.g., 1., 一、)
-    2: 'section',    # 节 - Second level (e.g., 1.1, （一）)
-    3: 'article',    # 条 - Third level (e.g., 1.1.1, （1）)
-    4: 'paragraph',  # 款 - Fourth level (e.g., ①)
-    5: 'item'        # 项 - Fifth level (e.g., a), b))
-}
-
-# ============================================================================
-# NEW: Validation configuration
-# ============================================================================
-
-# Validation rules
-VALIDATION_CONFIG = {
-    'min_content_length': 50,        # Minimum characters for a valid requirement
-    'max_content_length': 2000,      # Maximum characters before warning
-    'require_punctuation': True,     # Require sentence-ending punctuation
-    'require_source_lang': False,    # Warn if no source-language indicators
-    'filter_non_requirements': True  # Filter out headers/footers
-}
-
-# Romance-language indicators (used when source is pt / es / fr / it).
-# Kept here — not tied to any single locale.
-ROMANCE_INDICATORS = [
-    r'\b(de|do|da|dos|das|em|um|uma|para|com|por|que|se|na|no|ao|ou)\b',
-    r'(ção|mente|idade|ismo|ista|oso|osa|ico|ica|ado|ido|ando|endo)'
-]
 
 # ============================================================================
 #  Sentence-segmentation abbreviation lists (per source language).

@@ -289,7 +289,7 @@ class RequirementItemizationSkill:
             splitter.save_json_output(json_data, str(json_path))
             print(f'  [OK] JSON saved: {json_path}')
 
-        # ── Build processed_reqs (classifier columns removed) ───────
+        # ── Build processed_reqs ─────────────────────────────────────
         processed_reqs = []
         for idx, req_data in enumerate(requirements, 1):
             processed_reqs.append({
@@ -298,14 +298,9 @@ class RequirementItemizationSkill:
                 'chapter_title': req_data.get('chapter_title', ''),
                 'section_number': req_data.get('section_number', ''),
                 'section_title': req_data.get('section_title', ''),
-                'hierarchy_path': req_data.get('hierarchy_path', ''),
                 'content': req_data.get('content', ''),
-                'page': req_data.get('page', 0),
-                'tag': req_data.get('tag', ''),
                 'translations': {},
-                'detected_source': '',
                 'is_valid': req_data.get('is_valid', True),
-                'validation': req_data.get('validation', {}),
             })
 
         if not translate:
@@ -414,12 +409,6 @@ class RequirementItemizationSkill:
                 self._translate_with_google(processed_reqs, target_languages,
                                             translator_service,
                                             detected_source)
-
-            # Backfill detected_source + which column is "same as source"
-            # (those columns keep original text — no translation needed)
-            for r in processed_reqs:
-                r['detected_source'] = detected_source
-                r['source_is_target'] = detected_source in target_languages
 
         # ── 4. Generate Excel ────────────────────────────────────────
         print('\n  [4/4] Generating Excel...')
