@@ -1,0 +1,30 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.env
+
+# 生成产物（xlsx / orphans / 调试）
+output/
+output_fixed/
+
+# 演示 PDF（大、可重现）
+*.pdf
+
+# 本地 Claude 设置
+.claude/
+
+# 编辑器 / OS
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# 临时调试脚本
+*_peek.py
+*_validate.py
+
+# 生成日志 / 处理记录
+ET.00035.EQTL_处理日志.md
