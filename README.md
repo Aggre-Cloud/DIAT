@@ -4,24 +4,191 @@
 > requirements out of PDF documents, decompose by structure, translate, and
 > export an Excel report.
 
-Language docs: **English** (this file) · **中文** → [`README_zh.md`](README_zh.md)
+Language: **English** (this file) · **中文** → [`README_zh.md`](README_zh.md)
 
 ---
 
-## 1. Purpose
+## 1. What is DIaT? — Project Background
 
-This tool processes **structured, multi-language PDF documents** end-to-end:
+### The problem it solves
 
-- **Extract**: restore body text from multi-column, table-heavy PDFs with repeating headers/footers (4-strategy merge + scanned-PDF OCR fallback).
-- **Split**: decompose the document into hierarchical requirements (章 → 节 → 条 → 款 → 项).
-- **Segment**: per-source-language sentence boundary detection — hard-coded best practices for pt / en / zh / ja / ko / es / fr / de / …
-- **Translate**: multi-language rendering via Google Translate or Agent (Claude) mode.
-- **Validate**: mandatory body-preservation assertion (raises `BodyLossError` if < 80% coverage — silent dropping is intolerable).
-- **Export**: Excel workbook (ID / 章 / 节 / 需求原文 / per-language translation columns).
+International engineering, energy, and infrastructure projects routinely produce
+**structured, multi-language PDF documents** — procurement bids, technical
+specifications, contracts, regulations, and standards.  These documents share
+a common shape:
+
+- **Hierarchically numbered**: chapters → sections → articles → clauses → items
+  (章 → 节 → 条 → 款 → 项), often mixing numbering schemes like `Art. 1º`,
+  `CAPÍTULO`, `1.2.1`, `（1）`, `(a)`, roman numerals.
+- **Multi-language**: a Portuguese specification for a Chinese-backed project,
+  an Arabic tender reviewed by a German contractor, a Russian O&M plan read by a
+  Brazilian team.
+- **Layout-heavy**: multi-column text, embedded tables, repeating headers and
+  footers, and — in the worst case — scanned image pages.
+
+For a project engineer, procurement officer, or technical reviewer, the real
+work is: *"extract every requirement, know which chapter it belongs to, and make
+it readable in my language."*  Doing this by hand is slow, error-prone, and
+does not scale across a folder of documents.
+
+### What DIaT does
+
+**DIaT** (the name is a placeholder acronym) turns one such PDF into a
+structured, translated Excel workbook in a single command:
+
+1. **Extract** body text from the PDF — 4-strategy merge (layout → words →
+   tables → chars) with automatic header/footer stripping and scanned-PDF OCR
+   fallback.
+2. **Decompose** the document into hierarchical requirements, preserving the
+   chapter/section path of each item.
+3. **Segment** sentences per source language (pt / en / zh / ja / ko / es /
+   fr / de / …).
+4. **Translate** each requirement into two target languages — English is always
+   one column; you pick the other.
+5. **Validate** that no body text was silently dropped (aborts if coverage <
+   80% — partial output is intolerable).
+6. **Export** an Excel workbook: `ID / 章 / 节 / 需求原文 / English / <your
+   language>`.
+
+### Who it is for
+
+- Project engineers and procurement staff working with multi-language specs and
+  bids.
+- Technical translators who need a first-pass machine translation anchored to
+  the document's structure.
+- Compliance / QA reviewers who need to trace every requirement back to its
+  source chapter.
+- AI agents (Claude, etc.) that orchestrate document-processing pipelines and
+  need a deterministic, self-validating tool.
+
+### Non-goals
+
+DIaT does **not** replace a human translator, does not produce legally-certified
+output, does not read text embedded in images or flowcharts, and does not
+perform semantic analysis of contractual obligation ("shall / must").  It is a
+**structure-preserving extraction + machine-translation aid** — the human
+remains in the loop for review.
 
 ---
 
-## 2. Capability Boundaries
+## 2. How to Use — Recommended Ways
+
+### ▶ Recommended: interactive mode (just run it)
+
+The simplest, recommended way to use DIaT is to run it **interactively** and let
+the script guide you.  You only need to answer three questions; everything else
+is automatic:
+
+```bash
+# Make sure you're in the project root
+cd "<project-root>"
+
+# Run — that's it.  The script asks you 3 questions, then produces the Excel.
+PYTHONIOENCODING=utf-8 python 006_main/main.py "your-file.pdf"
+```
+
+You will be prompted, in order:
+
+| # | Question | Default |
+|---|----------|---------|
+| (a) | **Pick ONE non-English target language** — English (`en`) is always a target; you only choose the second | `zh-cn` (Simplified Chinese) |
+| (b) | **Pick translation engine** — `google` (Translate API) or `agent` (Claude self-translates via JSON queue) | `google` |
+| (c) | **Add proper-noun terms** by category (person name, project code, company, …) — or press Enter to skip | none (built-in ~30 generic seed terms) |
+
+After the prompts, the pipeline runs to completion and writes the Excel to
+`output/<your-file>_requirements.xlsx`.
+
+> **Tip:** if the auto-detected source language equals one of your targets,
+> that column keeps the original text automatically — no extra API call.
+
+### ▶ Non-interactive mode (batch / CI / explicit flags)
+
+If you already know all the choices and want to skip the prompts, pass the
+flags explicitly:
+
+```bash
+# English + Japanese, Google, non-interactive
+PYTHONIOENCODING=utf-8 python 006_main/main.py "your-file.pdf" \
+    -l ja -e google --no-input
+
+# English + Chinese, Agent mode, non-interactive
+PYTHONIOENCODING=utf-8 python 006_main/main.py "your-file.pdf" \
+    -l zh-cn -e agent --no-input
+
+# Extract + split + export Excel only, no translation
+PYTHONIOENCODING=utf-8 python 006_main/main.py "your-file.pdf" \
+    --no-translate --json --no-input
+
+# Batch a whole directory (non-interactive)
+PYTHONIOENCODING=utf-8 python 006_main/main.py ./pdfs --no-input
+```
+
+> **Note:** English (`en`) is always added automatically — `-l` only takes the
+> *non-English* language.  `-l en` is rejected with a clear message.
+
+### ▶ Agent / automated execution (auto-install deps first)
+
+When an AI agent runs DIaT, dependencies may not be present.  The script can
+install them from the project's own `requirements.txt` without human input:
+
+```bash
+# 1. (Optional) self-install missing deps — non-interactive in a non-TTY.
+#    Skip if you already ran `pip install -r requirements.txt`.
+python -m 006_main.main --install-deps
+
+# 2. Also pull optional extras (better segmentation + scanned-PDF OCR)
+python -m 006_main.main --install-deps --with-optional
+
+# 3. Run the actual pipeline
+python -m 006_main.main "your-file.pdf" -l ja -e google --no-input
+```
+
+### ▶ Human manual install (one command)
+
+```bash
+pip install -r requirements.txt
+pip install -r requirements-optional.txt   # optional: pysbd + ocrmypdf
+```
+
+---
+
+## 3. Agent Execution Protocol — What the Agent Should Recommend
+
+When an AI agent orchestrates DIaT on behalf of a user, **the recommended
+behavior is**:
+
+1. **Default to interactive.**  Do NOT pass `--no-input` on behalf of the
+   user — only pass it when the user explicitly asks for a non-interactive /
+   batch / fully-automated run.
+2. **Ask the user the three questions (a) / (b) / (c) above** before
+   executing, even if CLI flags could supply defaults.  This is the
+   project's mandatory pre-run checklist (see `AGENT_GUIDE.md §2`).
+3. **Recommend the interactive path** (`python 006_main/main.py "file.pdf"`)
+   as the primary way to use the skill — it is the least error-prone and
+   teaches the user what the tool can do.
+4. **Verify dependencies** before the first run: invoke `--install-deps` if a
+   required import is missing, then re-run.
+
+The tool is ultimately **for people to use** — the agent's job is to put the
+user in front of the three prompts, not to silently decide on their behalf.
+
+---
+
+## 4. Installed Dependencies
+
+| Package | Required? | Purpose |
+|---------|-----------|---------|
+| `openpyxl` | required | Excel workbook read/write |
+| `pdfplumber` | required | PDF text extraction (4-strategy merge) |
+| `PyPDF2` | required | PDF page probing / metadata |
+| `pypdfium2` | required | PDF rendering / page images |
+| `googletrans` | required | Google Translate engine (only when `-e google`) |
+| `pysbd` | optional | language-aware sentence segmentation (regex fallback if absent) |
+| `ocrmypdf` | optional | OCR fallback for scanned PDFs (needs system tesseract + ghostscript) |
+
+---
+
+## 5. Capability Boundaries
 
 ### ✅ Supported
 
@@ -33,10 +200,10 @@ This tool processes **structured, multi-language PDF documents** end-to-end:
 | Scanned PDFs | Probe, then call `ocrmypdf --language <config>` for OCR fallback (lazy import, not a hard dependency) |
 | Hierarchy markers | `Art. 1º` / `CAPÍTULO` / `SEÇÃO` / `§ 1º` / `I.` / `1.` / `1.2` / `1.2.1` / `（1）` / `(a)` / `•` / `(1)` / roman numerals / circled numbers |
 | Source language | pysbd (optional) + built-in regex fallback; pt / en / es / fr / de / zh / ja / ko each have dedicated segmentation rules |
-| Target language | Any googletrans / Claude language code (2 columns per run) |
+| Target language | English (fixed) + one user-picked language (any googletrans / Claude code) |
 | Translation engine | Google Translate (direct) or Agent (Claude translates on its own) |
 | Proper-noun protection | Placeholder substitution (built-in ~30 generic terms + user-supplied additions), restored after translation |
-| Output format | Excel workbook (ID / 章 / 节 / 需求原文 / per-language translation columns) |
+| Output format | Excel workbook (ID / 章 / 节 / 需求原文 / English / <your language>) |
 | Body validation | Mandatory coverage check; < 80% halts the pipeline with no output |
 | Title preservation | Heading lines are always emitted as part of each requirement's body (for coverage audit + context tracing); empty-body headings are auto-synthesized |
 | Default interaction | Interactive by default — prompts for target language / translation engine / proper-noun additions; only skips when the user explicitly asks or passes `--no-input` |
@@ -57,13 +224,12 @@ This tool processes **structured, multi-language PDF documents** end-to-end:
 
 - PDF must be **text-selectable** digital, or scanned at ≥ 200 dpi
 - Access to the Google Translate API (direct or via overseas proxy) is required unless you use Agent mode
-- Runtime: Python 3.9+; dependencies `pdfplumber`, `openpyxl`,
-  `googletrans==4.0.0-rc1` (the first two are required; googletrans is only needed for the Google engine)
+- Runtime: Python 3.9+; dependencies listed in §4
 - Large files (> 100 pages) grow significantly in processing time; OCR fallback runs ~1-5 s per page
 
 ---
 
-## 3. Architecture / Pipeline
+## 6. Architecture / Pipeline
 
 ```
 PDF file
@@ -91,7 +257,7 @@ ParseResult  { roots, items, meta, raw_rows }
    │
    ▼
 [005_excel_generator]  Excel workbook
-        ID | 章 | 节 | 需求原文 | English | 中文 | …
+        ID | 章 | 节 | 需求原文 | English | <your language>
 ```
 
 ### Key invariants
@@ -102,7 +268,7 @@ ParseResult  { roots, items, meta, raw_rows }
 
 ---
 
-## 4. Project Structure
+## 7. Project Structure
 
 ```
 DIaT/
@@ -115,7 +281,7 @@ DIaT/
 ├── 004_classifier/             # (inactive — no longer called from main.py)
 │   └── classifier.py
 ├── 005_excel_generator/
-│   └── excel_generator.py      # Excel output (requirement-category / product columns removed)
+│   └── excel_generator.py      # Excel output (localized headers; English + one user language)
 ├── 008_validator/
 │   └── validator.py            # assert_body_intact — body-survival check
 ├── 002_translator/
@@ -124,99 +290,15 @@ DIaT/
 │   └── main.py                 # CLI entry point + pipeline orchestration
 ├── 006_postprocess/
 │   └── split_items_postprocess.py
-├── README.md                   # user-facing documentation (this file, English)
-├── README_zh.md                # user-facing documentation (Chinese)
+├── sample doc/                 # example PDFs (multi-language) for testing
+├── README.md                   # this file — user-facing docs (English)
+├── README_zh.md                # user-facing docs (Chinese)
 └── AGENT_GUIDE.md              # orchestrator / sub-agent usage principles
 ```
 
 ---
 
-## 5. Quick Start
-
-### Install dependencies
-
-Two ways — pick the one that matches how you run.
-
-**Human (manual)** — install the pinned versions once, then run:
-
-```bash
-# Core dependencies (required)
-pip install -r requirements.txt
-
-# Optional extras: better segmentation + scanned-PDF OCR (needs system tesseract + ghostscript)
-pip install -r requirements-optional.txt
-```
-
-**Agent / automated** — the script auto-installs what it needs from the
-same `requirements.txt`, so there is no separate install step.  If a run is
-invoked from a non-TTY context (or with `--install-deps`), missing packages
-are installed without prompting:
-
-```bash
-# Install-only step (auto-detects missing packages, then exits)
-python -m 006_main.main --install-deps
-
-# Also pull in the optional extras
-python -m 006_main.main --install-deps --with-optional
-```
-
-| Package | Required? | Purpose |
-|---------|-----------|---------|
-| `openpyxl` | required | Excel workbook read/write |
-| `pdfplumber` | required | PDF text extraction (4-strategy merge) |
-| `PyPDF2` | required | PDF page probing / metadata |
-| `pypdfium2` | required | PDF rendering / page images |
-| `googletrans` | required | Google Translate engine (only when `-e google`) |
-| `pysbd` | optional | language-aware sentence segmentation (regex fallback if absent) |
-| `ocrmypdf` | optional | OCR fallback for scanned PDFs (needs system tesseract + ghostscript) |
-
-### Run
-
-> **Default = interactive.** When `--no-input` is omitted, the script prompts for target language / translation engine / proper-noun additions. Pass `--no-input` only when the user explicitly wants non-interactive mode.
-
-**Manual run (after `pip install`):**
-
-```bash
-cd "D:/Tool Development/Skills Development/DIaT"
-
-# single file — default interactive mode (prompts for language / engine / proper nouns)
-PYTHONIOENCODING=utf-8 python 006_main/main.py "<your-file.pdf>"
-
-# non-interactive — explicitly skip all prompts, use en + zh-cn + Google
-PYTHONIOENCODING=utf-8 python 006_main/main.py \
-    "<your-file.pdf>" --no-input
-
-# single file — extract + split + export Excel only, no translation (non-interactive)
-PYTHONIOENCODING=utf-8 python 006_main/main.py \
-    "<your-file.pdf>" \
-    --no-translate --json --no-input
-
-# single file — auto-translate (Google Translate, non-interactive)
-PYTHONIOENCODING=utf-8 python 006_main/main.py \
-    "<your-file.pdf>" \
-    -e google --no-input -l en,zh-cn
-
-# Agent mode (Claude reads the JSON, translates, writes back to Excel)
-PYTHONIOENCODING=utf-8 python 006_main/main.py \
-    "<your-file.pdf>" \
-    -e agent --no-input -l en,zh-cn
-
-# batch a directory (non-interactive)
-PYTHONIOENCODING=utf-8 python 006_main/main.py ./pdfs --no-input
-```
-
-**Automated / agent run (auto-install deps first):**
-
-```bash
-# 1. (Optional) self-install missing deps — in a non-TTY this runs without prompting.
-#    Skip if you already ran `pip install -r requirements.txt`.
-python -m 006_main.main --install-deps
-
-# 2. Run (add --no-input for non-interactive).
-python -m 006_main.main "<your-file.pdf>" -e google --no-input -l en,zh-cn
-```
-
-### CLI arguments
+## 8. CLI Arguments
 
 | Argument | Description |
 |----------|-------------|
@@ -224,28 +306,22 @@ python -m 006_main.main "<your-file.pdf>" -e google --no-input -l en,zh-cn
 | `-o, --output` | Output directory (default `output/`) |
 | `--no-translate` | Skip translation |
 | `--json` | Also emit the JSON intermediate |
-| `-l, --lang` | The NON-English target language (e.g. `pt`, `zh-cn`). English is always added automatically. Default 2 columns (English + Chinese) |
+| `-l, --lang` | The NON-English target language (e.g. `pt`, `ja`). English is always added automatically |
 | `-e, --engine` | Translation engine `google` (default) or `agent` |
-| `--no-input` | **Explicit** non-interactive mode (en + zh-cn + Google). Default behavior is interactive; only pass this when explicitly asked |
+| `--no-input` | **Explicit** non-interactive mode (en + zh-cn + Google). Default is interactive; only pass when explicitly asked |
+| `--display-lang` | Override the Excel header / sheet language (default: the non-English target) |
 | `--install-deps` | Install missing third-party packages from `requirements.txt`, then exit. Non-interactive when stdin is not a TTY (agent / pipe); asks for confirmation in a TTY |
 | `--with-optional` | Combined with `--install-deps`, also install the optional extras (`pysbd`, `ocrmypdf`) |
 
 ### Translation language-selection rules
 
-1. **Default 2-column translation** — Excel emits `需求原文` followed by two translation columns (e.g. `英文翻译` + `中文翻译`)
-2. **Interactive selection** — in non-`--no-input` mode the script asks the user to pick any two target languages (default `en,zh-cn`)
-3. **Same-source skip** — if the source language equals a target language, that column keeps the original text and the translation API is not called
-   - e.g. source is English and you pick `en,zh-cn` → the `英文翻译` column shows the original, `中文翻译` calls Google Translate
+1. **English is always a target** — you only pick the second language.
+2. **Same-source skip** — if the source language equals a target, that column keeps the original text (no API call).
+3. **Localized headers** — Excel static headers, column headers, and sheet title render in the non-English target language (e.g. `en + ja` → `ID / 章 / 節 / 原文 / 英語翻訳 / 日本語翻訳`).  No mixed-language headers.
 
-### Interactive flow
+---
 
-In non-`--no-input` mode the script asks the user three questions in sequence:
-
-1. **Target language** (default en + zh-cn)
-2. **Translation engine** (default Google Translate)
-3. **Proper-noun additions** (category-guided; defaults to none)
-
-Example session:
+## 9. Interactive Flow — Example Session
 
 ```
 $ PYTHONIOENCODING=utf-8 python 006_main/main.py example.pdf
@@ -255,13 +331,17 @@ $ PYTHONIOENCODING=utf-8 python 006_main/main.py example.pdf
   =======================================================
   Detected source: pt (Português)
 
-    en       — English
+    English (en) is always a target.
+    Choose ONE additional language for the second column.
+    Default: zh-cn
     zh-cn    — 中文（简体）
     pt       — Português ← source
+    es       — Español
     ...
 
-  Enter 2 language codes (comma-separated)
-  or press Enter for default [en,zh-cn]:
+  Enter 1 language code (or press Enter for default zh-cn): pt
+  → Targets: en + pt
+  ⚠ Source is pt (Português) → the Português column will show the original text.
 
   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     Translation Engine Selection
@@ -269,7 +349,7 @@ $ PYTHONIOENCODING=utf-8 python 006_main/main.py example.pdf
     1. Google Translate API   (default — fast, external)
     2. Agent  — Claude reads JSON, translates, writes back
 
-  Enter 1 or 2 (or press Enter for default Google):
+  Enter 1 or 2 (or press Enter for default Google): 1
 
   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     Proper-Noun Protection
@@ -294,31 +374,22 @@ $ PYTHONIOENCODING=utf-8 python 006_main/main.py example.pdf
     Add comma-separated terms (Enter to skip): SCADA,AMI,MDM,MDC
     + added 4 term(s).
 
-  Select a category number (1-10 to add, 0=done): 4
-  → [Company (this document)] currently empty
-    Add comma-separated terms (Enter to skip): CPFL,Enel
-    + added 2 term(s).
-
   Select a category number (1-10 to add, 0=done): 0
-  ✓ Proper-noun protection configured. 2 categories, 6 terms total.
+  ✓ Proper-noun protection configured. 1 categories, 4 terms total.
 
-  [3/4] Translating (engine=google, languages=['en', 'zh-cn'])...
+  [3/4] Translating (engine=google, languages=['en', 'pt'])...
   ...
+
+  [OK] Completed!
+  [OK] Output file: output/example_requirements.xlsx
+  [OK] Total requirements: 393
+  [OK] Valid requirements: 393 (100.0%)
+  [OK] Body coverage: 100.7%
 ```
 
 ---
 
-## 6. Roadmap
-
-- [ ] Allow specifying the source language on the CLI (skip auto-detection)
-- [ ] Add docx / odt output formats
-- [ ] Improve the multi-paragraph merge strategy (currently sentence-based)
-- [ ] Broader adaptation to official documents in other languages (Spanish / Portuguese / Angolan / …)
-- [ ] Incremental processing: extract deltas between two revisions of the same PDF
-
----
-
-## 7. Body-Preservation Guarantee
+## 10. Body-Preservation Guarantee
 
 Silent body loss is **intolerable** — `008_validator` runs unconditionally before the Excel is generated:
 
@@ -344,15 +415,7 @@ VALIDATION = {
 
 ---
 
-## 8. License & Attribution
-
-© **Aggre-Cloud 聚云科技** — <https://www.acdatech.com>
-
-Developed and maintained by Aggre-Cloud (聚云科技).
-
----
-
-## 9. Proper-Noun Protection
+## 11. Proper-Noun Protection
 
 Before translation, the following term classes are replaced by placeholders
 `__PROPER_<uuid>__` so that Google Translate leaves them untouched, and are
@@ -368,7 +431,7 @@ generic terms** (~30), organized by category:
 - Measurement units (GWh, MWh, kWh, Hz, kV, kW, kVA, MVA, ms, s)
 - Generic company / product names (Google, Microsoft, Amazon, Apple)
 
-The following are **empty categories** filled during interactive step 3 on a
+The following are **empty categories** filled during interactive step (c) on a
 per-document basis: person names, place names, product / project codes, company
 (this document), regulatory bodies, legal / document references, industry-specific
 terms, roles / responsibilities — and the user may **create arbitrary new
@@ -379,10 +442,6 @@ categories** at runtime.
 > **not** versioned seed — the user fills them under the matching category while
 > processing a concrete document. This is the tool's core mechanism for
 > cross-industry generalization.
-
-In interactive mode, step 3 **guides the user category by category**,
-immediately showing the running count, instead of asking them to list terms
-from scratch.
 
 **Mechanism** (`002_translator/translator.py`):
 
@@ -407,7 +466,7 @@ is matched before `AMI`.
 
 ---
 
-## 10. Agent Translation Mode
+## 12. Agent Translation Mode
 
 In Agent mode the script **does not call Google Translate**; instead it:
 
@@ -428,9 +487,10 @@ the agent must substitute the same placeholders before translation (the same
 
 ---
 
-## 11. Output Format
+## 13. Output Format
 
-Excel worksheet `Requirements` column definition:
+Excel worksheet column definition (sheet title and headers localized to the
+non-English target language):
 
 | Column | Field | Description |
 |--------|-------|-------------|
@@ -438,12 +498,31 @@ Excel worksheet `Requirements` column definition:
 | B | 章 (Chapter) | Top-level chapter number + title |
 | C | 节 (Section) | Sub-chapter number + title |
 | D | 需求原文 (Source) | Full sentence in the source language |
-| E | {lang1} translation | First target language (e.g. `English Translation`) |
-| F | {lang2} translation | Second target language (e.g. `Chinese Translation`) |
+| E | English translation | Always present |
+| F | <your language> translation | The user-picked language |
 
-- The four static headers (columns A–D) and the per-language headers (E / F) are rendered in the **display language** — by default the first target language.  An English-targeted sheet shows `ID / Chapter / Section / Source / English Translation / …`; a Chinese-targeted sheet shows `ID / 章 / 节 / 需求原文 / 中文翻译 / …`.  No mixed-language headers.
-- Columns E / F headers are chosen dynamically from the target languages
-- When the source language matches a target language, that column keeps the original text (no API call)
-- Column widths: `[10, 35, 35, 65, 65, 65]`
-```
+- When targets are `en` + one other language, the static headers + sheet title
+  render in that language — e.g. `en + ja` → sheet `要求事項`, headers
+  `ID / 章 / 節 / 原文 / 英語翻訳 / 日本語翻訳`.  No mixed-language headers.
+- When the source language matches a target, that column keeps the original
+  text (no API call).
+- Column widths: `[10, 32, 32, 65, 65]`.
+- Override the header language with `--display-lang <code>`.
 
+---
+
+## 14. Roadmap
+
+- [ ] Allow specifying the source language on the CLI (skip auto-detection)
+- [ ] Add docx / odt output formats
+- [ ] Improve the multi-paragraph merge strategy (currently sentence-based)
+- [ ] Broader adaptation to official documents in other languages
+- [ ] Incremental processing: extract deltas between two revisions of the same PDF
+
+---
+
+## 15. License & Attribution
+
+© **Aggre-Cloud 聚云科技** — <https://www.acdatech.com>
+
+Developed and maintained by Aggre-Cloud (聚云科技).

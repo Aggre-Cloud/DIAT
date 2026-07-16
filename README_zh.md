@@ -1,40 +1,181 @@
 # DIaT
 
-> 需求拆分与翻译工具 — 从 PDF 文档中提取层级化需求，按结构拆分并翻译，输出 Excel 报表。
+> 结构化需求提取与翻译工具 — 从 PDF 文档中提取层级化需求，按结构拆分并翻译，
+> 输出 Excel 报表。
 
-语言文档：**中文**（本文件） · **English** → [`README.md`](README.md)
-
----
-
-## 1. 作用
-
-本工具面向 **多语言、结构化的 PDF 文档** 的典型工作流：
-
-- **提取** — 从多栏、多表格、含重复页眉/页脚的 PDF 中还原正文文本（4 策略融合 + 扫描件 OCR 回退）
-- **拆分** — 按文档章节结构（章 → 节 → 条 → 款 → 项）层级化分解为独立需求
-- **断句** — 按源语言（pt / en / zh / ja / ko / es / fr / de / …）硬编码的最佳实践进行句级切分
-- **翻译** — 调用 Google Translate 或 Agent 模式完成多语言翻译
-- **校验** — 强制正文覆盖率校验（< 80% 即报错，绝不丢弃正文）
-- **输出** — Excel 报表（ID / 章 / 节 / 需求原文 / 各语言翻译列）
+语言：**中文**（本文件） · **English** → [`README.md`](README.md)
 
 ---
 
-## 2. 能力边界
+## 1. DIaT 是什么？—— 项目背景
+
+### 它解决什么问题
+
+国际工程、能源、基础设施项目每天都会产生**多语言、结构化的 PDF 文档**
+—— 招投标文件、技术规格书、合同、法规、标准。 这些文档有一个共同特征：
+
+- **层级编号**：章 → 节 → 条 → 款 → 项，常混用 `Art. 1º`、`CAPÍTULO`、
+  `1.2.1`、`（1）`、`(a)`、罗马数字、带圈数字等多种编号样式。
+- **多语言**：葡萄牙语规格书服务于中资项目、阿拉伯语标书由德国承包商评审、
+  俄语运维计划给巴西团队阅读。
+- **版式复杂**：多栏文本、内嵌表格、重复页眉页脚，严重时甚至是扫描件。
+
+对项目工程师、采购员、技术审核员来说，真正的工作是：*"把每条需求提取出来，
+标注它属于哪个章节，并翻译成我能读懂的语言。"* 手工做这件事慢、容易出错，
+更无法批量处理整个文件夹的文档。
+
+### DIaT 做了什么
+
+**DIaT**（项目代号）把这样一份 PDF 变成一份带翻译的结构化 Excel，一条命令搞定：
+
+1. **提取** — 用 4 策略融合（layout → words → tables → chars）还原 PDF 正文，
+   自动剥离页眉页脚，并对扫描件做 OCR 回退。
+2. **分解** — 按文档的章节结构层级化拆解为独立需求，保留每条需求的章节路径。
+3. **断句** — 按源语言（pt / en / zh / ja / ko / es / fr / de / …）的最佳实践切分句子。
+4. **翻译** — 把每条需求翻译成两种语言——英文固定为一列，你再选一种。
+5. **校验** — 强制检查正文没有被丢弃（覆盖率 < 80% 直接终止，绝不输出残缺结果）。
+6. **输出** — Excel 报表：`ID / 章 / 节 / 需求原文 / English / <你选的语言>`。
+
+### 适合谁用
+
+- 需要处理多语言规格书、标书的项目工程师与采购人员。
+- 需要基于文档结构做第一轮机翻的技术翻译人员。
+- 需要把每条需求追溯到原文章节的合规 / 质检审核人员。
+- 需要确定性、可自检的文档处理工具的 AI agent 编排流程。
+
+### 不适合什么（非目标）
+
+DIaT **不能**替代人工翻译，**不产出**法律效力的认证译文，**不能**识别图片 /
+流程图中的文字，也**不**做 "shall / must" 这类合同义务强度的语义分析。
+它是一个**保结构 + 机翻辅助**工具——最终审核仍由人完成。
+
+---
+
+## 2. 怎么用 —— 推荐方式
+
+### ▶ 推荐方式：交互模式（直接跑）
+
+最简单、最推荐的用法是**交互运行**，让脚本引导你。你只需要回答三个问题，
+其余全自动：
+
+```bash
+# 进入项目根目录
+cd "<项目根目录>"
+
+# 直接运行 —— 脚本会依次问你 3 个问题，然后输出 Excel
+PYTHONIOENCODING=utf-8 python 006_main/main.py "你的文件.pdf"
+```
+
+依次会问你：
+
+| # | 问题 | 默认值 |
+|---|------|--------|
+| (a) | **选一种非英语目标语言** —— 英文 `en` 始终是一个目标，你只需选第二种 | `zh-cn`（简体中文）|
+| (b) | **选翻译引擎** — `google`（Google 翻译API）或 `agent`（Claude 自行翻译）| `google` |
+| (c) | **补充专有名词**（按类别：人名、项目代号、公司名……）— 或直接回车跳过 | 无（使用内置 ~30 条通用种子词）|
+
+回答完毕后，流水线自动运行，Excel 输出到 `output/<你的文件>_requirements.xlsx`。
+
+> **提示：** 如果自动检测到的源语言与某个目标语言相同，该列会自动保留原文，
+> 不会重复调用翻译 API。
+
+### ▶ 非交互模式（批量 / CI / 显式传参）
+
+如果已经确定所有选择、不想看提示，直接传 flag：
+
+```bash
+# 英文 + 日文，Google，非交互
+PYTHONIOENCODING=utf-8 python 006_main/main.py "你的文件.pdf" \
+    -l ja -e google --no-input
+
+# 英文 + 中文，Agent 模式，非交互
+PYTHONIOENCODING=utf-8 python 006_main/main.py "你的文件.pdf" \
+    -l zh-cn -e agent --no-input
+
+# 仅提取 + 拆分 + 输出 Excel，不翻译
+PYTHONIOENCODING=utf-8 python 006_main/main.py "你的文件.pdf" \
+    --no-translate --json --no-input
+
+# 批量处理整个目录（非交互）
+PYTHONIOENCODING=utf-8 python 006_main/main.py ./pdfs --no-input
+```
+
+> **注意：** 英文 (`en`) 会自动加入——`-l` 只接受**非英语**语言码。传 `-l en`
+> 会收到明确提示并被拒绝。
+
+### ▶ Agent / 自动运行（先装依赖）
+
+AI agent 运行 DIaT 时，环境里可能还没有依赖。脚本会从项目自带的
+`requirements.txt` 自动安装，无需人工介入：
+
+```bash
+# 1. （可选）自动安装缺包 —— 非 TTY 下不弹窗。
+#    如果已执行过 `pip install -r requirements.txt` 可跳过。
+python -m 006_main.main --install-deps
+
+# 2. 同时安装可选增强包
+python -m 006_main.main --install-deps --with-optional
+
+# 3. 运行实际流水线
+python -m 006_main.main "你的文件.pdf" -l ja -e google --no-input
+```
+
+### ▶ 人工手动安装（一条命令）
+
+```bash
+pip install -r requirements.txt
+pip install -r requirements-optional.txt   # 可选：更好的断句 + 扫描件 OCR
+```
+
+---
+
+## 3. Agent 执行规范 —— Agent 应如何推荐
+
+当 AI agent 代替用户运行 DIaT 时，**推荐行为**是：
+
+1. **默认交互模式。** 不要擅自替用户传 `--no-input` —— 只在用户明确要求
+   非交互 / 批量 / 全自动时才传。
+2. **执行前先问用户 (a) / (b) / (c) 三个问题**，即使 CLI flag 能提供默认值。
+   这是项目强制的前置检查清单（详见 `AGENT_GUIDE.md §2`）。
+3. **把交互路径**（`python 006_main/main.py "文件.pdf"`）**作为首要推荐**
+   —— 这是最不容易出错的方式，也能让用户了解工具的能力。
+4. **首次运行前检查依赖**：如发现缺包，先调用 `--install-deps` 再重跑。
+
+这个工具归根结底是**给人用的** —— agent 的职责是让用户面前出现那三个提示，
+而不是默默替用户做决定。
+
+---
+
+## 4. 依赖清单
+
+| 包 | 是否必需 | 用途 |
+|----|----------|------|
+| `openpyxl` | 必需 | Excel 工作簿读写 |
+| `pdfplumber` | 必需 | PDF 文本提取（4 策略融合）|
+| `PyPDF2` | 必需 | PDF 页面探测 / 元数据 |
+| `pypdfium2` | 必需 | PDF 渲染 / 页面图像 |
+| `googletrans` | 必需 | Google 翻译引擎（仅 `-e google` 时）|
+| `pysbd` | 可选 | 按源语言断句（缺失则用内置正则 fallback）|
+| `ocrmypdf` | 可选 | 扫描件 OCR 回退（需系统 tesseract + ghostscript）|
+
+---
+
+## 5. 能力边界
 
 ### ✅ 支持
 
 | 维度 | 范围 |
 |------|------|
-| 输入 | 单 PDF 文件，或 PDF 所在目录（批量） |
+| 输入 | 单 PDF 文件，或 PDF 所在目录（批量）|
 | 结构类型 | 带层级编号的文档（合同、规格书、法规、标书、标准等）|
 | 页眉/页脚 | 自动探测重复块（≥ 75% 页出现）并剥离 |
 | 扫描件 | 探测后调用 `ocrmypdf --language <config>` 做 OCR 回退（lazy import，非硬依赖）|
 | 层级标记 | `Art. 1º` / `CAPÍTULO` / `SEÇÃO` / `§ 1º` / `I.` / `1.` / `1.2` / `1.2.1` / `（1）` / `(a)` / `•` / `(1)` / 罗马数字 / 带圈数字 |
 | 源语言 | pysbd (可选) + 内置正则 fallback；pt / en / es / fr / de / zh / ja / ko 均有专属断句规则 |
-| 目标语言 | 任意 googletrans / Claude 支持的语言码（每次输出 2 列）|
+| 目标语言 | 英文（固定）+ 用户选的一种（任意 googletrans / Claude 语言码）|
 | 翻译引擎 | Google Translate（直连）或 Agent（Claude 自行翻译）|
 | 专有名词保护 | 占位符替换（内置通用 ~30 条 + 用户交互补充），翻译后还原 |
-| 输出格式 | Excel 工作簿（ID / 章 / 节 / 原文 / 各语言翻译列）|
+| 输出格式 | Excel 工作簿（ID / 章 / 节 / 原文 / English / <你选的语言>）|
 | 正文校验 | 强制覆盖率检查，< 80% 终止流程不输出 |
 | 标题保留 | 标题行始终作为每条需求正文的一部分输出（供覆盖率校验 + 上下文追溯）；空正文标题行自动合成 |
 | 默认交互 | 默认进入交互模式，依次询问用户目标语言 / 翻译引擎 / 专有名词补充；仅当用户明确要求或传入 `--no-input` 才跳过 |
@@ -55,13 +196,12 @@
 
 - PDF 须为 **可选取文本** 的数字版，或扫描分辨率 ≥ 200 dpi
 - 须能访问 Google Translate API（直连或境外代理），除非使用 Agent 模式
-- 运行环境：Python 3.9+；所需依赖 `pdfplumber`、`openpyxl`、
-  `googletrans==4.0.0-rc1`（前两者必装，googletrans 仅 Google 引擎需要）
+- 运行环境：Python 3.9+；依赖见 §4
 - 大文件（> 100 页）处理时间会显著增长；OCR 回退每页约 1-5 秒
 
 ---
 
-## 3. 架构 / 流水线
+## 6. 架构 / 流水线
 
 ```
 PDF 文件
@@ -89,7 +229,7 @@ ParseResult  { roots, items, meta, raw_rows }
    │
    ▼
 [005_excel_generator]  Excel 工作簿
-        ID | 章 | 节 | 需求原文 | 英文翻译 | 中文翻译 | …
+        ID | 章 | 节 | 需求原文 | English | <你选的语言>
 ```
 
 ### 关键不变式
@@ -100,7 +240,7 @@ ParseResult  { roots, items, meta, raw_rows }
 
 ---
 
-## 4. 项目结构
+## 7. 项目结构
 
 ```
 DIaT/
@@ -113,7 +253,7 @@ DIaT/
 ├── 004_classifier/             # (已停用 — 不再从 main.py 调用)
 │   └── classifier.py
 ├── 005_excel_generator/
-│   └── excel_generator.py      # Excel 输出（已删除需求分类/产品相关列）
+│   └── excel_generator.py      # Excel 输出（表头本地化；英文 + 一种用户语言）
 ├── 008_validator/
 │   └── validator.py            # assert_body_intact — 正文存活校验
 ├── 002_translator/
@@ -122,98 +262,15 @@ DIaT/
 │   └── main.py                 # CLI 入口 + 流程编排
 ├── 006_postprocess/
 │   └── split_items_postprocess.py
+├── sample doc/                 # 多语言示例 PDF（供测试）
 ├── README.md                   # 面向用户的说明（English）
-├── README_zh.md                # 面向用户的说明（中文, 本文件）
+├── README_zh.md                # 面向用户的说明（中文，本文件）
 └── AGENT_GUIDE.md              # 面向 orchestrator / sub-agent 的使用原则
 ```
 
 ---
 
-## 5. 快速开始
-
-### 安装依赖
-
-两种方式 — 按你的运行方式选择。
-
-**人工运行（手动）** — 一次性安装固定版本，随后直接运行：
-
-```bash
-# 核心依赖（必需）
-pip install -r requirements.txt
-
-# 可选增强：更好的断句 + 扫描件 OCR（需系统安装 tesseract + ghostscript）
-pip install -r requirements-optional.txt
-```
-
-**Agent / 自动运行** — 脚本会从同一个 `requirements.txt` 自动安装缺
-失的包，无需单独的 install 步骤。在非 TTY（agent / 管道）下或使用
-`--install-deps` 时，缺包自动安装、不弹窗：
-
-```bash
-# 仅安装步骤（自动检测缺包，安装后退出）
-python -m 006_main.main --install-deps
-
-# 同时安装可选增强包
-python -m 006_main.main --install-deps --with-optional
-```
-
-| 包 | 是否必需 | 用途 |
-|----|----------|------|
-| `openpyxl` | 必需 | Excel 工作簿读写 |
-| `pdfplumber` | 必需 | PDF 文本提取（4 策略融合）|
-| `PyPDF2` | 必需 | PDF 页面探测 / 元数据 |
-| `pypdfium2` | 必需 | PDF 渲染 / 页面图像 |
-| `googletrans` | 必需 | Google 翻译引擎（仅 `-e google` 时）|
-| `pysbd` | 可选 | 按源语言断句（缺失则用内置正则 fallback）|
-| `ocrmypdf` | 可选 | 扫描件 OCR 回退（需系统 tesseract + ghostscript）|
-
-### 运行
-
-> **默认交互模式** — 不传 `--no-input` 时，脚本会依次询问用户目标语言 / 翻译引擎 / 专有名词补充。仅在用户明确要求非交互时使用 `--no-input`。
-
-**人工运行（已 `pip install`）：**
-
-```bash
-cd "D:/Tool Development/Skills Development/DIaT"
-
-# 单文件 — 默认交互模式（询问语言 / 引擎 / 专有名词）
-PYTHONIOENCODING=utf-8 python 006_main/main.py "<your-file.pdf>"
-
-# 非交互模式 — 显式跳过所有提示，使用 en + zh-cn + Google
-PYTHONIOENCODING=utf-8 python 006_main/main.py \
-    "<your-file.pdf>" --no-input
-
-# 单文件 — 不翻译，仅提取+拆分+输出 Excel（非交互）
-PYTHONIOENCODING=utf-8 python 006_main/main.py \
-    "<your-file.pdf>" \
-    --no-translate --json --no-input
-
-# 单文件 — 自动翻译（Google Translate，非交互）
-PYTHONIOENCODING=utf-8 python 006_main/main.py \
-    "<your-file.pdf>" \
-    -e google --no-input -l en,zh-cn
-
-# Agent 模式（Claude 自行读取 JSON、翻译、回写 Excel）
-PYTHONIOENCODING=utf-8 python 006_main/main.py \
-    "<your-file.pdf>" \
-    -e agent --no-input -l en,zh-cn
-
-# 批量目录（非交互）
-PYTHONIOENCODING=utf-8 python 006_main/main.py ./pdfs --no-input
-```
-
-**自动 / Agent 运行（先自动安装依赖）：**
-
-```bash
-# 1. （可选）自动安装缺包 — 非 TTY 下不弹窗。
-#    若已执行过 `pip install -r requirements.txt` 可跳过。
-python -m 006_main.main --install-deps
-
-# 2. 运行（加 `--no-input` 进入非交互模式）。
-python -m 006_main.main "<your-file.pdf>" -e google --no-input -l en,zh-cn
-```
-
-### CLI 参数
+## 8. CLI 参数
 
 | 参数 | 说明 |
 |------|------|
@@ -221,28 +278,24 @@ python -m 006_main.main "<your-file.pdf>" -e google --no-input -l en,zh-cn
 | `-o, --output` | 输出目录（默认 `output/`）|
 | `--no-translate` | 跳过翻译 |
 | `--json` | 额外输出 JSON 中间产物 |
-| `-l, --lang` | 非英语目标语言（如 `pt`、`zh-cn`），英文自动加入。默认 2 列（英文+中文）|
+| `-l, --lang` | 非英语目标语言（如 `pt`、`ja`），英文自动加入 |
 | `-e, --engine` | 翻译引擎 `google`（默认）或 `agent` |
 | `--no-input` | **显式** 非交互模式（en + zh-cn + Google）。默认行为是交互模式，仅当用户明确要求时才传此参数 |
+| `--display-lang` | 覆盖 Excel 表表头 / 工作表名语言（默认：非英语目标语言）|
 | `--install-deps` | 从 `requirements.txt` 安装缺包随后退出。非 TTY（agent / 管道）下不弹窗；TTY 下询问确认 |
 | `--with-optional` | 配合 `--install-deps`，同时安装可选增强包（`pysbd`、`ocrmypdf`）|
 
 ### 翻译语言选择规则
 
-1. **默认 2 列翻译** — Excel 输出 `需求原文` 后紧跟两列翻译列（`英文翻译` + `中文翻译`）
-2. **交互式选择** — 非 `--no-input` 模式下，脚本会询问用户选择任意两种目标语言（默认 `en,zh-cn`）
-3. **同源语言不翻译** — 若源语言与某个目标语言相同，该列保留原文，不调用翻译 API
-   - 例：原文为英文，选择 `en,zh-cn` → `英文翻译` 列显示原文，`中文翻译` 列调用 Google Translate
+1. **英文始终是目标** —— 你只需选第二种语言。
+2. **同源语言不翻译** —— 若源语言与某目标语言相同，该列保留原文（不调用 API）。
+3. **表头本地化** —— Excel 静态表头、列表头、工作表名按非英语目标语言渲染
+   （如 `en + ja` → 工作表 `要求事項`，表头 `ID / 章 / 節 / 原文 / 英語翻訳 / 日本語翻訳`），
+   不混用语言。
 
-### 交互模式流程
+---
 
-非 `--no-input` 模式下，脚本会依次询问用户三项选择：
-
-1. **目标语言**（默认 en + zh-cn）
-2. **翻译引擎**（默认 Google Translate）
-3. **专有名词补充**（按类别引导，默认无补充）
-
-示例交互：
+## 9. 交互流程 —— 示例
 
 ```
 $ PYTHONIOENCODING=utf-8 python 006_main/main.py example.pdf
@@ -252,13 +305,17 @@ $ PYTHONIOENCODING=utf-8 python 006_main/main.py example.pdf
   =======================================================
   Detected source: pt (Português)
 
-    en       — English
+    English (en) is always a target.
+    Choose ONE additional language for the second column.
+    Default: zh-cn
     zh-cn    — 中文（简体）
     pt       — Português ← source
+    es       — Español
     ...
 
-  Enter 2 language codes (comma-separated)
-  or press Enter for default [en,zh-cn]:
+  Enter 1 language code (or press Enter for default zh-cn): pt
+  → Targets: en + pt
+  ⚠ Source is pt (Português) → the Português column will show the original text.
 
   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     翻译引擎选择 / Translation Engine
@@ -266,7 +323,7 @@ $ PYTHONIOENCODING=utf-8 python 006_main/main.py example.pdf
     1. Google Translate API   (default — fast, external)
     2. Agent  — Claude reads JSON, translates, writes back
 
-  Enter 1 or 2 (or press Enter for default Google):
+  Enter 1 or 2 (or press Enter for default Google): 1
 
   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     专有名词保护 / Proper-Noun Protection
@@ -291,31 +348,22 @@ $ PYTHONIOENCODING=utf-8 python 006_main/main.py example.pdf
     输入逗号分隔词追加 (Enter 跳过): SCADA,AMI,MDM,MDC
     + added 4 term(s)。
 
-  请选择类别编号 (1-10 补充, 0=完成): 4
-  → [公司名（本文档）] 当前为空
-    输入逗号分隔词追加 (Enter 跳过): CPFL,Enel
-    + added 2 term(s)。
-
   请选择类别编号 (1-10 补充, 0=完成): 0
-  ✓ 专有名词保护配置完成。共 2 个类别，6 个术语。
+  ✓ 专有名词保护配置完成。共 1 个类别，4 个术语。
 
-  [3/4] Translating (engine=google, languages=['en', 'zh-cn'])...
+  [3/4] Translating (engine=google, languages=['en', 'pt'])...
   ...
+
+  [OK] Completed!
+  [OK] Output file: output/example_requirements.xlsx
+  [OK] Total requirements: 393
+  [OK] Valid requirements: 393 (100.0%)
+  [OK] Body coverage: 100.7%
 ```
 
 ---
 
-## 6. 后续方向 / Roadmap
-
-- [ ] 支持命令行指定源语言（跳过自动检测）
-- [ ] 引入 docx / odt 输出格式
-- [ ] 多段落合并策略优化（当前按句切分）
-- [ ] 对其他语种官方文档的泛化适配（西班牙/葡萄牙/安哥拉/…）
-- [ ] 增量处理：同一 PDF 修订版差异提取
-
----
-
-## 7. 正文不丢弃规范
+## 10. 正文不丢弃规范
 
 > **正文被丢弃现象，这点是绝对不可容忍的。**
 
@@ -343,15 +391,7 @@ VALIDATION = {
 
 ---
 
-## 8. License & Attribution
-
-© **Aggre-Cloud 聚云科技** — <https://www.acdatech.com>
-
-本工具由 Aggre-Cloud 聚云科技 开发并内部使用。
-
----
-
-## 9. 专有名词保护
+## 11. 专有名词保护
 
 翻译前，以下词类会被占位符 `__PROPER_<uuid>__` 替换，使 Google
 Translate 保持其原样，翻译完成后再还原：
@@ -365,16 +405,13 @@ Translate 保持其原样，翻译完成后再还原：
 - 计量单位（GWh、MWh、kWh、Hz、kV、kW、kVA、MVA、ms、s）
 - 通用公司 / 产品名（Google、Microsoft、Amazon、Apple）
 
-以下为**空类别**，在交互步骤 3 中按本文档实际情况逐一补充：
+以下为**空类别**，在交互步骤 (c) 中按本文档实际情况逐一补充：
 人名、地名、产品/项目代号、公司名（本文档）、监管机构、法规/文档编号、
 行业专有术语、岗位/职责，并可在运行时**新建任意类别**。
 
 > 类别集合是**开放**的：行业特定术语（如电力的 `SCADA/AMI/MDM/MDC`、医疗的
 > 药品名、法律的法院名）不属于版本化种子，而是用户在处理具体文档时按对应
 > 类别补充——这是工具跨行业泛化的核心机制。
-
-交互模式下，步骤 3 会**按类别引导**用户补充，并即时显示已填数量，而不是让用户
-凭空罗列。
 
 **实现机制**（`002_translator/translator.py`）：
 
@@ -398,7 +435,7 @@ _restore_proper_nouns()        ← 把占位符还原为原词
 
 ---
 
-## 10. Agent 模式
+## 12. Agent 模式
 
 Agent 模式下，脚本**不调用 Google Translate**，而是：
 
@@ -419,9 +456,9 @@ agent 在翻译前必须用占位符替换这些词（与 Google 路径相同的
 
 ---
 
-## 11. 输出格式
+## 13. 输出格式
 
-Excel 工作表 `Requirements` 列定义：
+Excel 工作表列定义（工作表名与表头按非英语目标语言本地化）：
 
 | 列 | 字段 | 说明 |
 |----|------|------|
@@ -429,11 +466,30 @@ Excel 工作表 `Requirements` 列定义：
 | B | 章 (Chapter) | 顶层章节号 + 标题 |
 | C | 节 (Section) | 子章节号 + 标题 |
 | D | 需求原文 (Source) | 源语言完整句 |
-| E | {lang1}翻译 | 第一目标语言（如 `中文翻译`） |
-| F | {lang2}翻译 | 第二目标语言（如 `英文翻译`） |
+| E | English 翻译 | 始终存在 |
+| F | <你选的语言> 翻译 | 用户选的语言 |
 
-- 前 4 列（A–D）的静态表头 + 语言列表头按**显示语言**渲染——默认跟随第一个目标语言。英文目标表显示 `ID / Chapter / Section / Source / English Translation / …`；中文目标表显示 `ID / 章 / 节 / 需求原文 / 中文翻译 / …`。不混用语言。
-- 列 E / F 的标题由目标语言动态决定
-- 若源语言匹配某目标语言，该列保留原文（不调用 API）
-- 列宽：`[10, 35, 35, 65, 65, 65]`
-```
+- 目标语言为 `en` + 另一种语言时，静态表头 + 工作表名以该语言渲染
+  ——如 `en + ja` → 工作表 `要求事項`，表头 `ID / 章 / 節 / 原文 / 英語翻訳 / 日本語翻訳`，
+  不混用语言。
+- 若源语言匹配某目标语言，该列保留原文（不调用 API）。
+- 列宽：`[10, 32, 32, 65, 65]`。
+- 可用 `--display-lang <code>` 覆盖表头语言。
+
+---
+
+## 14. 后续方向 / Roadmap
+
+- [ ] 支持命令行指定源语言（跳过自动检测）
+- [ ] 引入 docx / odt 输出格式
+- [ ] 多段落合并策略优化（当前按句切分）
+- [ ] 对其他语种官方文档的泛化适配
+- [ ] 增量处理：同一 PDF 修订版差异提取
+
+---
+
+## 15. License & Attribution
+
+© **Aggre-Cloud 聚云科技** — <https://www.acdatech.com>
+
+本工具由 Aggre-Cloud 聚云科技 开发并维护。
