@@ -11,6 +11,8 @@ output/
 
 # 演示 PDF（大、可重现）
 *.pdf
+# 但保留 sample doc/ 下的示例 PDF（项目文档与测试样例）
+!sample doc/*.pdf
 
 # 本地 Claude 设置
 .claude/
@@ -27,3 +29,5 @@ Thumbs.db
 
 # 生成日志 / 处理记录
 ET.00035.EQTL_处理日志.md
+
+# sample doc/ 已纳入仓库（示例 PDF 通过上方 !sample doc/*.pdf 放行）
