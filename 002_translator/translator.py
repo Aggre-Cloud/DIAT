@@ -399,7 +399,53 @@ class TranslationService:
 # =====================================================================
 #  Language label helpers
 # =====================================================================
+#
+#  The sheet's column headers are expressed in a *display language*.
+#  By convention the display language is the first target language, so an
+#  English-targeted sheet shows English headers and a Chinese-targeted sheet
+#  shows Chinese headers — no mixed-language headers.
+#
+#  _LANG_NAMES[code][display_lang] = human-readable name of *code* in *display_lang*
+#  _COLUMN_SUFFIX[display_lang]   = word glued onto the name ("翻译" / " Translation")
+#  _STATIC_HEADERS[display_lang]   = the four fixed-left headers [ID, 章, 节, 需求原文]
+#  _SHEET_TITLE[display_lang]      = worksheet tab name
 
+_LANG_NAMES = {
+    'en':    {'en': 'English',     'zh': '英文',   'zh-cn': '英文',   'pt': 'Inglês'},
+    'zh-cn': {'en': 'Chinese',     'zh': '中文',   'zh-cn': '中文',   'pt': 'Chinês'},
+    'pt':    {'en': 'Portuguese',  'zh': '葡文',   'zh-cn': '葡文',   'pt': 'Português'},
+    'es':    {'en': 'Spanish',     'zh': '西班牙语', 'zh-cn': '西班牙语', 'pt': 'Espanhol'},
+    'fr':    {'en': 'French',      'zh': '法语',   'zh-cn': '法语',   'pt': 'Francês'},
+    'de':    {'en': 'German',      'zh': '德语',   'zh-cn': '德语',   'pt': 'Alemão'},
+    'ja':    {'en': 'Japanese',    'zh': '日语',   'zh-cn': '日语',   'pt': 'Japonês'},
+    'ko':    {'en': 'Korean',      'zh': '韩语',   'zh-cn': '韩语',   'pt': 'Coreano'},
+}
+
+# Suffix appended to a language name to build the translation-column header.
+_COLUMN_SUFFIX = {
+    'en':    ' Translation',
+    'zh':    '翻译',
+    'zh-cn': '翻译',
+    'pt':    'Tradução',
+}
+
+# The four fixed-left column headers, expressed per display language.
+_STATIC_HEADERS = {
+    'en':    ['ID', 'Chapter', 'Section', 'Source'],
+    'zh':    ['ID', '章', '节', '需求原文'],
+    'zh-cn': ['ID', '章', '节', '需求原文'],
+    'pt':    ['ID', 'Capítulo', 'Seção', 'Original'],
+}
+
+# Worksheet tab name per display language.
+_SHEET_TITLE = {
+    'en':    'Requirements',
+    'zh':    '需求',
+    'zh-cn': '需求',
+    'pt':    'Requisitos',
+}
+
+# Backward-compatible alias: the old LANG_LABELS assumed a Chinese sheet.
 LANG_LABELS = {
     'en':    '英文翻译',
     'zh-cn': '中文翻译',
@@ -411,19 +457,75 @@ LANG_LABELS = {
     'ko':    '韩语翻译',
 }
 
-_LANG_NAMES = {
-    'en': 'English',
-    'zh-cn': 'Simplified Chinese',
-    'pt': 'Portuguese',
-    'es': 'Spanish',
-    'fr': 'French',
-    'de': 'German',
-    'ja': 'Japanese',
-    'ko': 'Korean',
-}
+
+def _normalize_lang(code):
+    """Reduce a (possibly compound) lang code to a key we have tables for.
+
+    Falls back to the base subtag ('zh-cn' → 'zh'), then to 'en'.
+    """
+    if code in _LANG_NAMES:
+        return code
+    base = code.split('-')[0]
+    if base in _LANG_NAMES:
+        return base
+    return 'en'
+
+
+def lang_column_header(target_code, display_lang='en'):
+    """Header for the *target_code* translation column, in *display_lang*.
+
+    Examples
+    --------
+    >>> lang_column_header('en', 'en')
+    'English Translation'
+    >>> lang_column_header('en', 'zh-cn')
+    '英文翻译'
+    >>> lang_column_header('pt', 'pt')
+    'PortuguêsTradução'
+    """
+    tc = _normalize_lang(target_code)
+    dl = _normalize_lang(display_lang)
+    name = (_LANG_NAMES.get(tc, {}).get(dl)
+            or _LANG_NAMES.get(tc, {}).get('en')
+            or target_code)
+    suffix = _COLUMN_SUFFIX.get(dl, _COLUMN_SUFFIX['en'])
+    return f'{name}{suffix}'
+
+
+def all_column_headers(target_code):
+    """The set of every header string that could label *target_code*.
+
+    Used by reverse-lookup code (``write_translations_to_excel``) so it works
+    no matter which display language the sheet was generated with.
+    """
+    tc = _normalize_lang(target_code)
+    out = set()
+    for dl in _COLUMN_SUFFIX:
+        name = (_LANG_NAMES.get(tc, {}).get(dl)
+                or _LANG_NAMES.get(tc, {}).get('en')
+                or target_code)
+        out.add(f'{name}{_COLUMN_SUFFIX[dl]}')
+    # Also accept the legacy Chinese LANG_LABELS form.
+    if target_code in LANG_LABELS:
+        out.add(LANG_LABELS[target_code])
+    return out
+
+
+def static_headers(display_lang='en'):
+    """The four fixed-left column headers, expressed in *display_lang*."""
+    dl = _normalize_lang(display_lang)
+    return _STATIC_HEADERS.get(dl, _STATIC_HEADERS['en'])
+
+
+def sheet_title(display_lang='en'):
+    """Worksheet tab name, expressed in *display_lang*."""
+    dl = _normalize_lang(display_lang)
+    return _SHEET_TITLE.get(dl, _SHEET_TITLE['en'])
+
 
 def lang_label(code):
-    return LANG_LABELS.get(code, f'{code}翻译')
+    """Backward-compatible single-arg form (assumes a Chinese sheet)."""
+    return lang_column_header(code, display_lang='zh')
 
 
 # -----------------------------------------------------------------------

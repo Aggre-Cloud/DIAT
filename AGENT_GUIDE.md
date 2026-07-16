@@ -328,17 +328,25 @@ before/after its own translation pass.
 
 ## 8. Output Contract
 
-Excel workbook `{pdf_stem}_requirements.xlsx`, sheet `Requirements`:
+Excel workbook `{pdf_stem}_requirements.xlsx`, sheet name localized to the
+**display language** (`Requirements` for English, `需求` for Chinese,
+`Requisitos` for Portuguese, … — defaults to the first target language).
 
-| Column | Header (en)       | Header (zh)     | Width |
-|--------|-------------------|-----------------|-------|
-| A      | ID                | ID              | 10    |
-| B      | 章                | 章              | 35    |
-| C      | 节                | 节              | 35    |
-| D      | 需求原文          | 需求原文        | 65    |
-| E      | {lang1}翻译       | {lang1}翻译     | 65    |
-| F      | {lang2}翻译       | {lang2}翻译     | 65    |
+| Column | Header (en display) | Header (zh display) | Width |
+|--------|---------------------|---------------------|-------|
+| A      | ID                  | ID                  | 10    |
+| B      | Chapter             | 章                  | 35    |
+| C      | Section             | 节                  | 35    |
+| D      | Source              | 需求原文            | 65    |
+| E      | {lang1} Translation | {lang1}翻译         | 65    |
+| F      | {lang2} Translation | {lang2}翻译         | 65    |
 
+- The four static headers (A–D) **and** the per-language headers (E / F)
+  are all rendered in the **display language** (default = first target
+  language).  An English-targeted sheet reads
+  `ID / Chapter / Section / Source / English Translation / Chinese Translation`;
+  a Chinese-targeted sheet reads
+  `ID / 章 / 节 / 需求原文 / 中文翻译 / 英文翻译`.  No mixed-language headers.
 - Columns E / F headers are **dynamic** — determined by the user's two
   target languages (e.g. `英文翻译` + `中文翻译`).
 - If source == target for one column, that column keeps the **original

@@ -435,12 +435,13 @@ Excel worksheet `Requirements` column definition:
 | Column | Field | Description |
 |--------|-------|-------------|
 | A | ID | REQ-0001, incrementing |
-| B | 章 | Top-level chapter number + title |
-| C | 节 | Sub-chapter number + title |
-| D | 需求原文 | Full sentence in the source language |
-| E | {lang1} translation | First target language (e.g. `英文翻译`) |
-| F | {lang2} translation | Second target language (e.g. `中文翻译`) |
+| B | 章 (Chapter) | Top-level chapter number + title |
+| C | 节 (Section) | Sub-chapter number + title |
+| D | 需求原文 (Source) | Full sentence in the source language |
+| E | {lang1} translation | First target language (e.g. `English Translation`) |
+| F | {lang2} translation | Second target language (e.g. `Chinese Translation`) |
 
+- The four static headers (columns A–D) and the per-language headers (E / F) are rendered in the **display language** — by default the first target language.  An English-targeted sheet shows `ID / Chapter / Section / Source / English Translation / …`; a Chinese-targeted sheet shows `ID / 章 / 节 / 需求原文 / 中文翻译 / …`.  No mixed-language headers.
 - Columns E / F headers are chosen dynamically from the target languages
 - When the source language matches a target language, that column keeps the original text (no API call)
 - Column widths: `[10, 35, 35, 65, 65, 65]`

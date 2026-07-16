@@ -970,7 +970,11 @@ def write_translations_to_excel(excel_path, translations, output_path=None):
         if val:
             header_to_col[str(val)] = col
 
-    # Reverse lookup: lang code → column number via LANG_LABELS
+    # Reverse lookup: lang code → column number.
+    # Use all_column_headers() so the match works no matter which display
+    # language the sheet was generated in (English headers, Chinese
+    # headers, Portuguese headers, …).  Fall back to the legacy
+    # LANG_LABELS single form if the helper is unavailable.
     sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
     from importlib.util import spec_from_file_location
     spec = spec_from_file_location('translator', os.path.join(
@@ -979,15 +983,24 @@ def write_translations_to_excel(excel_path, translations, output_path=None):
     tm = __import__('importlib.util').util.module_from_spec(spec)
     spec.loader.exec_module(tm)
 
+    _all_headers = getattr(tm, 'all_column_headers', None)
     lang_col = {}
-    for code, label in tm.LANG_LABELS.items():
-        if label in header_to_col:
-            lang_col[code] = header_to_col[label]
+    if _all_headers is not None:
+        for code in list(getattr(tm, 'LANG_LABELS', {}).keys()):
+            for header_text in _all_headers(code):
+                if header_text in header_to_col:
+                    lang_col[code] = header_to_col[header_text]
+                    break
+    else:
+        for code, label in tm.LANG_LABELS.items():
+            if label in header_to_col:
+                lang_col[code] = header_to_col[label]
 
-    # Find ID column (first column with header "ID")
+    # Find ID column (first column whose header, upper-cased, is "ID").
     id_col = None
     for col in range(1, ws.max_column + 1):
-        if ws.cell(1, col).value and str(ws.cell(1, col).value).upper() == 'ID':
+        val = ws.cell(1, col).value
+        if val and str(val).strip().upper() == 'ID':
             id_col = col
             break
     if not id_col:

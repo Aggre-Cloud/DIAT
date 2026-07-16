@@ -3,6 +3,10 @@ Excel generation module - FIXED VERSION
   - 章/节 combined: number + title in ONE cell
   - Columns: ID / 章 / 节 / 需求原文 / <dynamic language translations>
   - Only "Requirements" sheet (no Translation/Statistics/Validation)
+  - Static headers + translation-column headers are rendered in the
+    *display language* (= first target language by default) so an
+    English-targeted sheet shows English headers and a Chinese-targeted
+    sheet shows Chinese headers — no mixed-language headers.
 """
 import re
 import openpyxl
@@ -40,7 +44,8 @@ class ExcelGenerator:
     #  Public API
     # ------------------------------------------------------------------ #
 
-    def generate(self, requirements, output_file, target_languages=None):
+    def generate(self, requirements, output_file, target_languages=None,
+                 display_lang=None):
         """
         Generate Excel file — only one sheet: "Requirements"
 
@@ -48,6 +53,9 @@ class ExcelGenerator:
             requirements:      List of requirement dicts
             output_file:       Output file path
             target_languages:  List of lang codes (e.g. ['en','zh-cn'])
+            display_lang:      Language for static + column headers.  When
+                              None, defaults to the first target language
+                              (falls back to 'en' if no targets given).
         """
         import importlib.util
         spec = importlib.util.spec_from_file_location(
@@ -57,13 +65,16 @@ class ExcelGenerator:
         spec.loader.exec_module(trans_mod)
 
         target_languages = target_languages or ['en', 'zh-cn']
+        if display_lang is None:
+            display_lang = target_languages[0] or 'en'
 
         wb = openpyxl.Workbook()
         ws = wb.active
-        ws.title = "Requirements"
+        ws.title = trans_mod.sheet_title(display_lang)
 
         self._fill_requirements_sheet(ws, requirements,
                                       target_languages,
+                                      display_lang,
                                       trans_mod)
 
         wb.save(output_file)
@@ -92,16 +103,25 @@ class ExcelGenerator:
         return text
 
     def _fill_requirements_sheet(self, ws, requirements,
-                                 target_languages, trans_mod):
-        """Fill the single Requirements sheet with dynamic language columns."""
+                                 target_languages, display_lang,
+                                 trans_mod):
+        """Fill the single Requirements sheet with dynamic language columns.
 
-        lang_label = getattr(trans_mod, 'lang_label',
-                             lambda c: f'{c}翻译')
+        ``display_lang`` controls the language of both the static headers
+        (ID / 章 / 节 / 需求原文) and the per-language column headers.
+        Resolve helper functions defensively so the generator also works
+        with older translator modules that lack the new helpers.
+        """
+        _static_headers = getattr(trans_mod, 'static_headers',
+                                  lambda dl: ["ID", "章", "节", "需求原文"])
+        _lang_col_header = getattr(trans_mod, 'lang_column_header',
+                                   trans_mod.lang_label)
 
         # ---- Build header list dynamically --------------------------------
         # Layout: ID / 章 / 节 / 需求原文 / <dynamic language columns>
-        static_headers = ["ID", "章", "节", "需求原文"]
-        lang_headers = [lang_label(c) for c in target_languages]
+        static_headers = _static_headers(display_lang)
+        lang_headers = [_lang_col_header(c, display_lang)
+                        for c in target_languages]
         headers = static_headers + lang_headers
         num_cols = len(headers)
 
@@ -152,7 +172,7 @@ class ExcelGenerator:
                 val = self._clean_artifacts(translations.get(lang, '') or '')
                 per_lang[lang] = val
 
-            # Write static columns (ID / 章 / 节 / 需求原文)
+            # Write static columns (ID / 章|Chapter / 节|Section / 需求原文|Source)
             ws.cell(row=row_idx, column=1, value=req.get("id", "")).alignment = center_top
             ws.cell(row=row_idx, column=2, value=chapter).alignment   = wrap
             ws.cell(row=row_idx, column=3, value=section).alignment   = wrap
@@ -175,7 +195,7 @@ class ExcelGenerator:
             ws.row_dimensions[row_idx].height = min(180, max(30, est_lines * 15))
 
         # ---- Column widths ------------------------------------------------
-        # ID / 章 / 节 / 需求原文 / <langs...>
+        # ID / 章|Chapter / 节|Section / 需求原文|Source / <langs...>
         col_widths = [10, 32, 32, 65] + [65] * len(target_languages)
         for col, width in enumerate(col_widths[:num_cols], 1):
             ws.column_dimensions[get_column_letter(col)].width = width
