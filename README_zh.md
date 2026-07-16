@@ -218,7 +218,7 @@ python -m 006_main.main "<your-file.pdf>" -e google --no-input -l en,zh-cn
 | 参数 | 说明 |
 |------|------|
 | `input` | PDF 文件或目录路径 |
-| `-o, --output` | 输出目录（默认 `output_fixed/`）|
+| `-o, --output` | 输出目录（默认 `output/`）|
 | `--no-translate` | 跳过翻译 |
 | `--json` | 额外输出 JSON 中间产物 |
 | `-l, --lang` | 目标语言，逗号分隔（如 `en,zh-cn`）。默认 2 列（英文+中文）|

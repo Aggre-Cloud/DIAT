@@ -8,14 +8,13 @@ import os
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 # Input/output directories
+# A single output folder: output/ (json intermediates live in output/json/)
 INPUT_DIR = BASE_DIR
 OUTPUT_DIR = os.path.join(BASE_DIR, "output")
-OUTPUT_FIXED_DIR = os.path.join(BASE_DIR, "output_fixed")
-JSON_OUTPUT_DIR = os.path.join(OUTPUT_FIXED_DIR, "json")
+JSON_OUTPUT_DIR = os.path.join(OUTPUT_DIR, "json")
 
 # Ensure output directories exist
 os.makedirs(OUTPUT_DIR, exist_ok=True)
-os.makedirs(OUTPUT_FIXED_DIR, exist_ok=True)
 os.makedirs(JSON_OUTPUT_DIR, exist_ok=True)
 
 # OCR fallback language (used by 003_pdf_extractor._ocr_fallback).

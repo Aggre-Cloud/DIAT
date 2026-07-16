@@ -8,7 +8,6 @@ venv/
 
 # 生成产物（xlsx / orphans / 调试）
 output/
-output_fixed/
 
 # 演示 PDF（大、可重现）
 *.pdf

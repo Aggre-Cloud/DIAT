@@ -203,7 +203,7 @@ class RequirementItemizationSkill:
     def __init__(self, output_dir=None, json_output=False):
         self.config = load_config()
         self.modules = load_modules()
-        self.output_dir = Path(output_dir) if output_dir else Path(self.config.OUTPUT_FIXED_DIR)
+        self.output_dir = Path(output_dir) if output_dir else Path(self.config.OUTPUT_DIR)
         self.output_dir.mkdir(parents=True, exist_ok=True)
         self.json_output = json_output
         self.json_dir = self.output_dir / "json"
