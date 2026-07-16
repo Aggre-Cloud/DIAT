@@ -1,0 +1,14 @@
+# DIaT optional extras.
+# Install:  pip install -r requirements-optional.txt
+#
+# These are NOT required for the core pipeline.  Install them only if you
+# want the enhanced features described below.
+
+# pysbd — source-language-aware sentence segmentation.  When absent the
+# tool falls back to its built-in per-language regex rules (still correct,
+# just less nuanced on ambiguous boundaries).
+pysbd>=0.3
+
+# ocrmypdf — OCR fallback for scanned PDFs.  Requires system tesseract +
+# ghostscript to be installed separately.
+ocrmypdf>=15.0

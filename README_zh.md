@@ -131,19 +131,47 @@ DIaT/
 
 ## 5. 快速开始
 
-### 安装
+### 安装依赖
+
+两种方式 — 按你的运行方式选择。
+
+**人工运行（手动）** — 一次性安装固定版本，随后直接运行：
 
 ```bash
-pip install pdfplumber openpyxl googletrans==4.0.0-rc1
-# 可选（增强断句质量）：
-pip install pysbd
-# 可选（扫描件 OCR）：
-pip install ocrmypdf     # 同时需要系统安装 tesseract + ghostscript
+# 核心依赖（必需）
+pip install -r requirements.txt
+
+# 可选增强：更好的断句 + 扫描件 OCR（需系统安装 tesseract + ghostscript）
+pip install -r requirements-optional.txt
 ```
+
+**Agent / 自动运行** — 脚本会从同一个 `requirements.txt` 自动安装缺
+失的包，无需单独的 install 步骤。在非 TTY（agent / 管道）下或使用
+`--install-deps` 时，缺包自动安装、不弹窗：
+
+```bash
+# 仅安装步骤（自动检测缺包，安装后退出）
+python -m 006_main.main --install-deps
+
+# 同时安装可选增强包
+python -m 006_main.main --install-deps --with-optional
+```
+
+| 包 | 是否必需 | 用途 |
+|----|----------|------|
+| `openpyxl` | 必需 | Excel 工作簿读写 |
+| `pdfplumber` | 必需 | PDF 文本提取（4 策略融合）|
+| `PyPDF2` | 必需 | PDF 页面探测 / 元数据 |
+| `pypdfium2` | 必需 | PDF 渲染 / 页面图像 |
+| `googletrans` | 必需 | Google 翻译引擎（仅 `-e google` 时）|
+| `pysbd` | 可选 | 按源语言断句（缺失则用内置正则 fallback）|
+| `ocrmypdf` | 可选 | 扫描件 OCR 回退（需系统 tesseract + ghostscript）|
 
 ### 运行
 
 > **默认交互模式** — 不传 `--no-input` 时，脚本会依次询问用户目标语言 / 翻译引擎 / 专有名词补充。仅在用户明确要求非交互时使用 `--no-input`。
+
+**人工运行（已 `pip install`）：**
 
 ```bash
 cd "D:/Tool Development/Skills Development/DIaT"
@@ -174,6 +202,17 @@ PYTHONIOENCODING=utf-8 python 006_main/main.py \
 PYTHONIOENCODING=utf-8 python 006_main/main.py ./pdfs --no-input
 ```
 
+**自动 / Agent 运行（先自动安装依赖）：**
+
+```bash
+# 1. （可选）自动安装缺包 — 非 TTY 下不弹窗。
+#    若已执行过 `pip install -r requirements.txt` 可跳过。
+python -m 006_main.main --install-deps
+
+# 2. 运行（加 `--no-input` 进入非交互模式）。
+python -m 006_main.main "<your-file.pdf>" -e google --no-input -l en,zh-cn
+```
+
 ### CLI 参数
 
 | 参数 | 说明 |
@@ -185,6 +224,8 @@ PYTHONIOENCODING=utf-8 python 006_main/main.py ./pdfs --no-input
 | `-l, --lang` | 目标语言，逗号分隔（如 `en,zh-cn`）。默认 2 列（英文+中文）|
 | `-e, --engine` | 翻译引擎 `google`（默认）或 `agent` |
 | `--no-input` | **显式** 非交互模式（en + zh-cn + Google）。默认行为是交互模式，仅当用户明确要求时才传此参数 |
+| `--install-deps` | 从 `requirements.txt` 安装缺包随后退出。非 TTY（agent / 管道）下不弹窗；TTY 下询问确认 |
+| `--with-optional` | 配合 `--install-deps`，同时安装可选增强包（`pysbd`、`ocrmypdf`）|
 
 ### 翻译语言选择规则
 

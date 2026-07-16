@@ -1,14 +1,175 @@
 """
-Main program - OPTIMIZED VERSION
-Supports JSON intermediate output and hierarchical requirement extraction
+DIaT — main CLI entry point and pipeline orchestration.
+
+Responsibilities
+----------------
+* Parse CLI args and run the interactive / non-interactive pipeline.
+* Provide `ensure_dependencies()`, a self-install check that lets the agent
+  (re)install missing packages from the project `requirements.txt` and
+  continue without human intervention.
+* Provide `write_translations_to_excel()` for the Agent translation path.
+
+Dependency contract
+-------------------
+All third-party imports the pipeline needs are listed in `REQUIRED_PACKAGES`
+(below).  If any import fails, the agent should call
+``python -m 006_main.main --install-deps`` (or invoke
+``ensure_dependencies()``) to install them and then re-run.  Manual users
+install the standard way::
+
+    pip install -r requirements.txt
 """
 import sys
 import os
+import subprocess
 from pathlib import Path
+import importlib
 import importlib.util
 import json
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+
+# ---------------------------------------------------------------------------
+# Dependency table — the single source of truth for third-party requirements.
+# Keep this synchronized with the project-root ``requirements.txt``.
+#   import_name  : pip package specifier (what pip installs)
+# ---------------------------------------------------------------------------
+REQUIRED_PACKAGES = {
+    "openpyxl":        "openpyxl==3.1.2",
+    "pdfplumber":      "pdfplumber==0.11.9",
+    "PyPDF2":           "PyPDF2==3.0.1",
+    "pypdfium2":       "pypdfium2==5.3.0",
+    "googletrans":     "googletrans==4.0.0rc1",
+}
+
+# Optional extras — not required for the core pipeline, installed on demand.
+OPTIONAL_PACKAGES = {
+    "pysbd":           "pysbd>=0.3",
+}
+
+# Map "nice" labels for user-facing messaging.
+OPTIONAL_LABELS = {
+    "pysbd": "pysbd (source-language-aware sentence segmentation; hard-coded regex fallback used if absent)",
+}
+
+
+def _missing_imports():
+    """Return a list of import names from REQUIRED_PACKAGES that are not
+    currently importable in this Python process.
+
+    A module that exists but fails to import (corrupt install, missing
+    native dep, …) is treated as missing.
+    """
+    missing = []
+    for import_name, _ in REQUIRED_PACKAGES.items():
+        try:
+            importlib.import_module(import_name)
+        except Exception:
+            missing.append(import_name)
+    return missing
+
+
+def ensure_dependencies(auto_install=True, interactive=False, install_optional=False):
+    """Verify every REQUIRED_PACKAGES import resolves.
+
+    On the first failure:
+      * If ``auto_install`` is True, run ``pip install`` for the missing
+        packages from the project ``requirements.txt`` (so the same pinned
+        versions the project ships are used), then re-check.
+      * If ``auto_install`` is False and ``interactive`` is True, ask the
+        user whether to install now.
+      * Otherwise, print a clear remediation command and return False.
+
+    Parameters
+    ----------
+    auto_install : bool
+        Install missing third-party packages without prompting.  The agent
+        path sets this to True.
+    interactive : bool
+        When True and auto_install is False, prompt the user before
+        installing (manual-CLI convenience).
+    install_optional : bool
+        Also try to import+install the OPTIONAL_PACKAGES set (e.g. pysbd).
+
+    Returns
+    -------
+    bool
+        True if all required imports resolve afterwards, False otherwise.
+    """
+    missing = _missing_imports()
+    if not missing:
+        return True
+
+    project_root = Path(__file__).resolve().parent.parent
+    req_file = project_root / "requirements.txt"
+
+    # Translate import names → pip specifiers (fall back to the bare name).
+    specs_to_install = [
+        REQUIRED_PACKAGES.get(n, n) for n in missing
+    ]
+    if install_optional:
+        for name, spec in OPTIONAL_PACKAGES.items():
+            try:
+                importlib.import_module(name)
+            except Exception:
+                specs_to_install.append(spec)
+
+    def _print_remediation():
+        sys.stderr.write(
+            "[ERROR] 缺少必需依赖 / missing required packages:\n"
+        )
+        for n in missing:
+            sys.stderr.write(f"        - {n}\n")
+        sys.stderr.write(
+            "\n  · 人工运行 / manual:\n"
+            f"        pip install -r {req_file}\n"
+            "  · 自动安装 / agent (non-interactive):\n"
+            f"        python -m 006_main.main --install-deps\n"
+            "  · 针对缺包精准安装 / pin-point:\n"
+            f"        pip install {' '.join(specs_to_install)}\n"
+        )
+
+    if not auto_install and not interactive:
+        _print_remediation()
+        return False
+
+    if interactive:
+        resp = input(
+            f"  {len(missing)} 个缺包 missing: "
+            f"{', '.join(missing)} — install now? [Y/n] "
+        ).strip().lower()
+        if resp and resp not in ("y", "yes", ""):
+            _print_remediation()
+            return False
+
+    # Resolve the interpreter running this script so we install into the
+    # right environment (venv / conda / system).
+    py = sys.executable
+    cmd = [py, "-m", "pip", "install"] + specs_to_install
+    print(f"[deps] installing: {' '.join(specs_to_install)}")
+    try:
+        subprocess.check_call(cmd)
+    except subprocess.CalledProcessError as e:
+        _print_remediation()
+        sys.stderr.write(
+            f"\n[ERROR] pip install 失败 (exit code {e.returncode}). "
+            "请人工重试上述 pip 命令 / re-run the pip command manually.\n"
+        )
+        return False
+
+    importlib.invalidate_caches()
+    still_missing = _missing_imports()
+    if still_missing:
+        _print_remediation()
+        sys.stderr.write(
+            "\n[ERROR] 安装后仍缺包 — 请检查 Python 环境与网络。/"
+            "still missing after install — check Python env and network.\n"
+        )
+        return False
+
+    print(f"[OK] 依赖就绪 / dependencies ready — {', '.join(missing)} installed.")
+    return True
 
 def load_config():
     config_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), '007_config', 'config.py')
@@ -707,8 +868,10 @@ def process_folder(folder_path, output_dir=None, translate=True, json_output=Fal
 def main():
     import argparse
     parser = argparse.ArgumentParser(
-        description='DIaT')
-    parser.add_argument('input', help='PDF file or folder path')
+        description='DIaT — PDF requirement extraction + translation')
+    parser.add_argument('input', nargs='?', default=None,
+                        help='PDF file or folder path (optional when using '
+                             '--install-deps).')
     parser.add_argument('-o', '--output', default=None, help='Output directory')
     parser.add_argument('--no-translate', action='store_true',
                         help='Skip translation')
@@ -722,7 +885,39 @@ def main():
                         help='Translation engine (default: prompt or google).')
     parser.add_argument('--no-input', action='store_true',
                         help='Non-interactive mode: use en,zh-cn + Google.')
+    parser.add_argument('--install-deps', action='store_true',
+                        help='Install missing third-party packages from '
+                             'requirements.txt, then exit.  In a non-TTY '
+                             '(agent) context this runs without prompting; '
+                             'in a TTY it asks for confirmation first.')
+    parser.add_argument('--with-optional', action='store_true',
+                        help='Together with --install-deps, also install the '
+                             'optional extras (e.g. pysbd).')
     args = parser.parse_args()
+
+    # --install-deps: self-install then exit (no PDF processing).
+    if args.install_deps:
+        auto = not sys.stdin.isatty()   # non-interactive in agent / pipe
+        ok = ensure_dependencies(
+            auto_install=auto,
+            interactive=not auto,
+            install_optional=args.with_optional,
+        )
+        sys.exit(0 if ok else 1)
+
+    # Normal run: make sure deps are present before doing any work.
+    if not args.no_input:
+        # Interactive human run — ask before installing.
+        if not ensure_dependencies(auto_install=False, interactive=True):
+            sys.exit(1)
+    else:
+        # Non-interactive (agent / batch) — install automatically.
+        if not ensure_dependencies(auto_install=True):
+            sys.exit(1)
+
+    if args.input is None:
+        parser.error('the following arguments are required: input '
+                     '(unless --install-deps is used)')
 
     # Parse target languages from CLI or None (will prompt)
     target_languages = None

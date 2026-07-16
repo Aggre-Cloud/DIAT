@@ -49,6 +49,57 @@ need to ask the user about this; the pipeline handles it internally.
 > **forbidden**.  The `--no-input` flag is the only legitimate way to
 > bypass prompts, and it implies the defaults above.
 
+### 2c. Dependency Bootstrap (Auto-Install)
+
+The pipeline depends on the packages listed in
+`006_main/main.py::REQUIRED_PACKAGES` (mirrored in the project
+`requirements.txt`).  **Before any run, ensure they are importable.**
+
+**Agent path (automatic, no human in the loop):**
+
+```bash
+# 1. Self-install missing packages from requirements.txt, then exit.
+PYTHONIOENCODING=utf-8 python -m 006_main.main --install-deps
+
+# 2. (Optional) also install optional extras (pysbd, ocrmypdf).
+PYTHONIOENCODING=utf-8 python -m 006_main.main --install-deps --with-optional
+
+# 3. Run the actual pipeline.
+PYTHONIOENCODING=utf-8 python -m 006_main.main "<file.pdf>" --no-input
+```
+
+`--install-deps` detects a non-TTY (agent / pipe) and installs without
+prompting.  It exits after install, so it is always followed by a real run.
+
+**Human path (manual, one command):**
+
+```bash
+# Install everything the project ships (pinned versions).
+pip install -r requirements.txt
+
+# Optional extras (better segmentation + scanned-PDF OCR).
+pip install -r requirements-optional.txt
+
+# Run (interactive by default).
+PYTHONIOENCODING=utf-8 python 006_main/main.py "<file.pdf>"
+```
+
+If a human runs the script without installing first and a package is
+missing, the script prints the exact `pip install` command and, in a TTY,
+asks whether to install now (opt-in).
+
+**Dependency contract**
+
+| Package | Required? | Why |
+|---------|-----------|-----|
+| `openpyxl` | required | Excel workbook read/write |
+| `pdfplumber` | required | PDF text extraction (4-strategy merge) |
+| `PyPDF2` | required | PDF page probing / metadata |
+| `pypdfium2` | required | PDF rendering / page images |
+| `googletrans` | required | Google Translate engine (only when `-e google`) |
+| `pysbd` | optional | language-aware sentence segmentation (regex fallback if absent) |
+| `ocrmypdf` | optional | OCR fallback for scanned PDFs (needs system tesseract + ghostscript) |
+
 ---
 
 ## 3. Forbidden Actions — NEVER
@@ -314,3 +365,103 @@ Excel workbook `{pdf_stem}_requirements.xlsx`, sheet `Requirements`:
 
 本工具由 Aggre-Cloud 聚云科技 开发并内部使用。
 Developed and maintained by Aggre-Cloud (聚云科技).
+
+---
+
+## 11. Run Protocols — Exact Command Sequences
+
+Two supported ways to run DIaT.  Pick the one that matches your caller.
+
+### 11a. Agent Run (automated, no human interaction)
+
+Use this when the orchestrating agent drives the tool end-to-end.
+
+```bash
+# Step 0 — enter the project directory.
+cd "<path-to>/DIaT"
+
+# Step 1 — ensure dependencies (auto-installs from requirements.txt,
+#          no prompt because stdin is not a TTY).
+PYTHONIOENCODING=utf-8 python -m 006_main.main --install-deps
+
+# Step 2 — (optional) install extras for better segmentation / OCR.
+PYTHONIOENCODING=utf-8 python -m 006_main.main --install-deps --with-optional
+
+# Step 3 — run the pipeline non-interactively.
+#   Google Translate engine:
+PYTHONIOENCODING=utf-8 python -m 006_main.main \
+    "<file.pdf>" -e google --no-input -l en,zh-cn
+
+#   Agent translation engine (writes JSON queue, agent translates, writes back):
+PYTHONIOENCODING=utf-8 python -m 006_main.main \
+    "<file.pdf>" -e agent --no-input -l en,zh-cn
+
+# Step 4 — (Agent engine only) read the emitted *_agent_queue.json,
+#   translate each row, and call write_translations_to_excel() to persist.
+```
+
+**Agent-mode decision table**
+
+| Condition | Action |
+|-----------|--------|
+| `--install-deps` exits non-zero | Read stderr — it prints the exact `pip` command to retry manually. Do NOT proceed to Step 3. |
+| Google engine chosen | Pipeline calls Google Translate directly; no agent translation work needed. |
+| Agent engine chosen | Pipeline writes `*_agent_queue.json` and an Excel with blank translation columns. Agent **must** fill them via `write_translations_to_excel()`. |
+| `BodyLossError` raised | Abort. Show the error + first 5 orphans. Do NOT retry with a lower threshold unless the user asks. |
+
+### 11b. Human Run (manual, interactive by default)
+
+Use this when a person runs the tool from a terminal.
+
+```bash
+# Step 0 — enter the project directory.
+cd "<path-to>/DIaT"
+
+# Step 1 — install dependencies ONCE (pinned versions).
+pip install -r requirements.txt
+# Optional:
+pip install -r requirements-optional.txt
+
+# Step 2 — run interactively (prompts for language / engine / proper nouns).
+PYTHONIOENCODING=utf-8 python 006_main/main.py "<file.pdf>"
+
+# Step 2-alt — non-interactive (skips prompts, uses en + zh-cn + Google).
+PYTHONIOENCODING=utf-8 python 006_main/main.py "<file.pdf>" --no-input
+
+# Step 2-alt — Google engine, explicit languages, non-interactive.
+PYTHONIOENCODING=utf-8 python 006_main/main.py \
+    "<file.pdf>" -e google --no-input -l en,zh-cn
+```
+
+**Human-mode decision table**
+
+| Condition | Action |
+|-----------|--------|
+| Script prints "missing required packages" | Run `pip install -r requirements.txt` (or answer `Y` to the in-TTY prompt) and re-run. |
+| Forgot to install first | Same as above — the script tells you exactly what to run. |
+| Want to change target languages | Re-run with `-l <codes>` or run interactively and pick at the prompt. |
+| Want Agent mode | Add `-e agent --no-input`; then translate the JSON queue yourself or hand it to an agent. |
+
+### 11c. Quick-Reference Card
+
+```
+┌──────────────────────────────────────────────────────────────────┐
+│  DIaT — how to run                                              │
+│                                                                  │
+│  Human (one-time setup):                                         │
+│      pip install -r requirements.txt                             │
+│                                                                  │
+│  Human (interactive):                                            │
+│      python 006_main/main.py <file.pdf>                          │
+│                                                                  │
+│  Human (non-interactive):                                        │
+│      python 006_main/main.py <file.pdf> --no-input               │
+│                                                                  │
+│  Agent (auto-install + run):                                     │
+│      python -m 006_main.main --install-deps                      │
+│      python -m 006_main.main <file.pdf> --no-input -e google     │
+│                                                                  │
+│  Optional extras (better segmentation + OCR):                    │
+│      pip install -r requirements-optional.txt                    │
+└──────────────────────────────────────────────────────────────────┘
+```

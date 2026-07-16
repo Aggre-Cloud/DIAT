@@ -133,19 +133,48 @@ DIaT/
 
 ## 5. Quick Start
 
-### Install
+### Install dependencies
+
+Two ways — pick the one that matches how you run.
+
+**Human (manual)** — install the pinned versions once, then run:
 
 ```bash
-pip install pdfplumber openpyxl googletrans==4.0.0-rc1
-# optional (better segmentation):
-pip install pysbd
-# optional (OCR for scanned PDFs):
-pip install ocrmypdf     # also requires system tesseract + ghostscript installed
+# Core dependencies (required)
+pip install -r requirements.txt
+
+# Optional extras: better segmentation + scanned-PDF OCR (needs system tesseract + ghostscript)
+pip install -r requirements-optional.txt
 ```
+
+**Agent / automated** — the script auto-installs what it needs from the
+same `requirements.txt`, so there is no separate install step.  If a run is
+invoked from a non-TTY context (or with `--install-deps`), missing packages
+are installed without prompting:
+
+```bash
+# Install-only step (auto-detects missing packages, then exits)
+python -m 006_main.main --install-deps
+
+# Also pull in the optional extras
+python -m 006_main.main --install-deps --with-optional
+```
+
+| Package | Required? | Purpose |
+|---------|-----------|---------|
+| `openpyxl` | required | Excel workbook read/write |
+| `pdfplumber` | required | PDF text extraction (4-strategy merge) |
+| `PyPDF2` | required | PDF page probing / metadata |
+| `pypdfium2` | required | PDF rendering / page images |
+| `googletrans` | required | Google Translate engine (only when `-e google`) |
+| `pysbd` | optional | language-aware sentence segmentation (regex fallback if absent) |
+| `ocrmypdf` | optional | OCR fallback for scanned PDFs (needs system tesseract + ghostscript) |
 
 ### Run
 
 > **Default = interactive.** When `--no-input` is omitted, the script prompts for target language / translation engine / proper-noun additions. Pass `--no-input` only when the user explicitly wants non-interactive mode.
+
+**Manual run (after `pip install`):**
 
 ```bash
 cd "D:/Tool Development/Skills Development/DIaT"
@@ -176,6 +205,17 @@ PYTHONIOENCODING=utf-8 python 006_main/main.py \
 PYTHONIOENCODING=utf-8 python 006_main/main.py ./pdfs --no-input
 ```
 
+**Automated / agent run (auto-install deps first):**
+
+```bash
+# 1. (Optional) self-install missing deps — in a non-TTY this runs without prompting.
+#    Skip if you already ran `pip install -r requirements.txt`.
+python -m 006_main.main --install-deps
+
+# 2. Run (add --no-input for non-interactive).
+python -m 006_main.main "<your-file.pdf>" -e google --no-input -l en,zh-cn
+```
+
 ### CLI arguments
 
 | Argument | Description |
@@ -187,6 +227,8 @@ PYTHONIOENCODING=utf-8 python 006_main/main.py ./pdfs --no-input
 | `-l, --lang` | Target languages, comma-separated (e.g. `en,zh-cn`). Default is 2 columns (English + Chinese) |
 | `-e, --engine` | Translation engine `google` (default) or `agent` |
 | `--no-input` | **Explicit** non-interactive mode (en + zh-cn + Google). Default behavior is interactive; only pass this when explicitly asked |
+| `--install-deps` | Install missing third-party packages from `requirements.txt`, then exit. Non-interactive when stdin is not a TTY (agent / pipe); asks for confirmation in a TTY |
+| `--with-optional` | Combined with `--install-deps`, also install the optional extras (`pysbd`, `ocrmypdf`) |
 
 ### Translation language-selection rules
 
