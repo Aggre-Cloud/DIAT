@@ -411,14 +411,22 @@ class TranslationService:
 #  _SHEET_TITLE[display_lang]      = worksheet tab name
 
 _LANG_NAMES = {
-    'en':    {'en': 'English',     'zh': '英文',   'zh-cn': '英文',   'pt': 'Inglês'},
-    'zh-cn': {'en': 'Chinese',     'zh': '中文',   'zh-cn': '中文',   'pt': 'Chinês'},
-    'pt':    {'en': 'Portuguese',  'zh': '葡文',   'zh-cn': '葡文',   'pt': 'Português'},
-    'es':    {'en': 'Spanish',     'zh': '西班牙语', 'zh-cn': '西班牙语', 'pt': 'Espanhol'},
-    'fr':    {'en': 'French',      'zh': '法语',   'zh-cn': '法语',   'pt': 'Francês'},
-    'de':    {'en': 'German',      'zh': '德语',   'zh-cn': '德语',   'pt': 'Alemão'},
-    'ja':    {'en': 'Japanese',    'zh': '日语',   'zh-cn': '日语',   'pt': 'Japonês'},
-    'ko':    {'en': 'Korean',      'zh': '韩语',   'zh-cn': '韩语',   'pt': 'Coreano'},
+    'en':    {'en': 'English',     'zh': '英文',   'zh-cn': '英文',   'pt': 'Inglês',
+              'es': 'Inglés',      'fr': 'Anglais', 'de': 'Englisch', 'ja': '英語',  'ko': '영어'},
+    'zh-cn': {'en': 'Chinese',     'zh': '中文',   'zh-cn': '中文',   'pt': 'Chinês',
+              'es': 'Chino',       'fr': 'Chinois', 'de': 'Chinesisch', 'ja': '中国語', 'ko': '중국어'},
+    'pt':    {'en': 'Portuguese',  'zh': '葡文',   'zh-cn': '葡文',   'pt': 'Português',
+              'es': 'Portugués',   'fr': 'Portugais', 'de': 'Portugiesisch', 'ja': 'ポルトガル語', 'ko': '포르투갈어'},
+    'es':    {'en': 'Spanish',     'zh': '西班牙语', 'zh-cn': '西班牙语', 'pt': 'Espanhol',
+              'es': 'Español',     'fr': 'Espagnol', 'de': 'Spanisch', 'ja': 'スペイン語', 'ko': '스페인어'},
+    'fr':    {'en': 'French',      'zh': '法语',   'zh-cn': '法语',   'pt': 'Francês',
+              'es': 'Francés',     'fr': 'Français', 'de': 'Französisch', 'ja': 'フランス語', 'ko': '프랑스어'},
+    'de':    {'en': 'German',      'zh': '德语',   'zh-cn': '德语',   'pt': 'Alemão',
+              'es': 'Alemán',      'fr': 'Allemand', 'de': 'Deutsch', 'ja': 'ドイツ語', 'ko': '독일어'},
+    'ja':    {'en': 'Japanese',    'zh': '日语',   'zh-cn': '日语',   'pt': 'Japonês',
+              'es': 'Japonés',     'fr': 'Japonais', 'de': 'Japanisch', 'ja': '日本語', 'ko': '일본어'},
+    'ko':    {'en': 'Korean',      'zh': '韩语',   'zh-cn': '韩语',   'pt': 'Coreano',
+              'es': 'Coreano',     'fr': 'Coréen', 'de': 'Koreanisch', 'ja': '韓国語', 'ko': '한국어'},
 }
 
 # Suffix appended to a language name to build the translation-column header.
@@ -427,6 +435,11 @@ _COLUMN_SUFFIX = {
     'zh':    '翻译',
     'zh-cn': '翻译',
     'pt':    'Tradução',
+    'es':    'Traducción',
+    'fr':    'Traduction',
+    'de':    'Übersetzung',
+    'ja':    '翻訳',
+    'ko':    '번역',
 }
 
 # The four fixed-left column headers, expressed per display language.
@@ -435,6 +448,11 @@ _STATIC_HEADERS = {
     'zh':    ['ID', '章', '节', '需求原文'],
     'zh-cn': ['ID', '章', '节', '需求原文'],
     'pt':    ['ID', 'Capítulo', 'Seção', 'Original'],
+    'es':    ['ID', 'Capítulo', 'Sección', 'Original'],
+    'fr':    ['ID', 'Chapitre', 'Section', 'Source'],
+    'de':    ['ID', 'Kapitel', 'Abschnitt', 'Quelle'],
+    'ja':    ['ID', '章', '節', '原文'],
+    'ko':    ['ID', '장', '절', '원문'],
 }
 
 # Worksheet tab name per display language.
@@ -443,6 +461,11 @@ _SHEET_TITLE = {
     'zh':    '需求',
     'zh-cn': '需求',
     'pt':    'Requisitos',
+    'es':    'Requisitos',
+    'fr':    'Exigences',
+    'de':    'Anforderungen',
+    'ja':    '要求事項',
+    'ko':    '요구사항',
 }
 
 # Backward-compatible alias: the old LANG_LABELS assumed a Chinese sheet.

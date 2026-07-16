@@ -66,7 +66,12 @@ class ExcelGenerator:
 
         target_languages = target_languages or ['en', 'zh-cn']
         if display_lang is None:
-            display_lang = target_languages[0] or 'en'
+            # Default rule: prefer the non-English target language so that
+            # an en+es sheet shows fully Spanish headers, en+fr shows
+            # French headers, etc.  Falls back to the first target when
+            # none of the targets is English (or only English is present).
+            non_en = [l for l in target_languages if l.split('-')[0] != 'en']
+            display_lang = non_en[0] if non_en else (target_languages[0] or 'en')
 
         wb = openpyxl.Workbook()
         ws = wb.active

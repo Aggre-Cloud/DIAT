@@ -215,7 +215,8 @@ class RequirementItemizationSkill:
             print(f'[OK] JSON output directory: {self.json_dir}')
 
     def process_pdf(self, pdf_path, translate=True, save_json=None,
-                    target_languages=None, engine=None, no_input=False):
+                    target_languages=None, engine=None, no_input=False,
+                    display_lang=None):
         pdf_path = Path(pdf_path)
         if not pdf_path.exists():
             print(f'[ERROR] File not found {pdf_path}')
@@ -436,6 +437,7 @@ class RequirementItemizationSkill:
             processed_reqs,
             str(output_file),
             target_languages=excel_target_languages,
+            display_lang=display_lang,
         )
 
         valid_count = sum(1 for r in processed_reqs if r.get('is_valid', True))
@@ -805,7 +807,7 @@ class RequirementItemizationSkill:
             req['detected_source'] = translations.get('detected_source', '')
 
     def process_folder(self, folder_path, translate=True, target_languages=None,
-                       engine=None, no_input=False):
+                       engine=None, no_input=False, display_lang=None):
         folder_path = Path(folder_path)
         if not folder_path.exists():
             print(f'[ERROR] Folder not found {folder_path}')
@@ -843,27 +845,32 @@ class RequirementItemizationSkill:
             output_file = self.process_pdf(pdf_file, translate,
                                            target_languages=target_languages,
                                            engine=engine,
-                                           no_input=no_input)
+                                           no_input=no_input,
+                                           display_lang=display_lang)
             if output_file:
                 results.append(output_file)
         return results
 
 
 def process_file(pdf_path, output_dir=None, translate=True, json_output=False,
-                 target_languages=None, engine=None, no_input=False):
+                 target_languages=None, engine=None, no_input=False,
+                 display_lang=None):
     skill = RequirementItemizationSkill(output_dir=output_dir, json_output=json_output)
     return skill.process_pdf(pdf_path, translate,
                              target_languages=target_languages,
                              engine=engine,
-                             no_input=no_input)
+                             no_input=no_input,
+                             display_lang=display_lang)
 
 def process_folder(folder_path, output_dir=None, translate=True, json_output=False,
-                   target_languages=None, engine=None, no_input=False):
+                   target_languages=None, engine=None, no_input=False,
+                   display_lang=None):
     skill = RequirementItemizationSkill(output_dir=output_dir, json_output=json_output)
     return skill.process_folder(folder_path, translate,
                                 target_languages=target_languages,
                                 engine=engine,
-                                no_input=no_input)
+                                no_input=no_input,
+                                display_lang=display_lang)
 
 def main():
     import argparse
@@ -893,6 +900,10 @@ def main():
     parser.add_argument('--with-optional', action='store_true',
                         help='Together with --install-deps, also install the '
                              'optional extras (e.g. pysbd).')
+    parser.add_argument('--display-lang', default=None,
+                        help='Language for Excel column headers / sheet title '
+                             '(e.g. es).  Default: the non-English target '
+                             'language, so an en+es sheet shows Spanish headers.')
     args = parser.parse_args()
 
     # --install-deps: self-install then exit (no PDF processing).
@@ -935,13 +946,15 @@ def main():
                           translate=not args.no_translate,
                           target_languages=target_languages,
                           engine=args.engine,
-                          no_input=args.no_input)
+                          no_input=args.no_input,
+                          display_lang=args.display_lang)
     elif input_path.is_dir():
         skill.process_folder(input_path,
                              translate=not args.no_translate,
                              target_languages=target_languages,
                              engine=args.engine,
-                             no_input=args.no_input)
+                             no_input=args.no_input,
+                             display_lang=args.display_lang)
     else:
         print(f'[ERROR] Path not found {input_path}')
 
