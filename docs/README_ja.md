@@ -154,75 +154,107 @@ pip install -r requirements-optional.txt   # オプション: pysbd + ocrmypdf
 
 ---
 
-## 3. スキルのインストールと Agent の起動
+## 3. AI Agent 経由で DIaT を使う
 
-### Agent へのスキルインストール
+DIaT は **agent skill** です。**1 つの prompt** を送るだけで、Agent が残りをすべて
+行います — プロジェクトの取得、依存関係のインストール、そして抽出 → 翻訳 → Excel
+までの全パイプラインの実行。あなたが自分で clone したり `pip install` したりする
+必要はありません。インストールは Agent が実行の一環として自分で行います。
 
-DIaT は通常の Python プロジェクトです — 「スキルのインストール」とは、Agent が
-`005_main/main.py` を実行できるようにプロジェクトフォルダを利用可能にすることを
-意味します。
+リポジトリの `AGENT_GUIDE.md` は Agent の取扱説明書です。対応する Agent はプロジェクトが
+ディスク上にあるとすぐにそれを読むため、あなたの prompt に必要なのは
+**ドキュメント**と**選択**だけです。
 
-1. **リポジトリをクローン** — Agent のホスト（または自分のマシン）の永続的な
-   場所に：
-   ```bash
-   git clone https://github.com/Aggre-Cloud/DIAT.git
-   cd DIaT
-   ```
-2. **依存関係を 1 回インストール**（Agent も `--install-deps` で自己インストール
-   できますが、手動インストールの方が速い）：
-   ```bash
-   pip install -r requirements.txt
-   ```
-3. **Agent にプロジェクトルートを指定**。登録や設定ファイルは不要 — PDF を処理
-   したいときは、プロジェクトルートと入力ファイルの絶対パスを Agent に伝えます：
+### 3a. 1 つの prompt で十分 — テンプレート
 
-   ```
-   Process this PDF with DIaT:
-     project → D:/Tool Development/Skills Development/DIaT
-     input   → D:/.../my-spec.pdf
-   ```
+最も短い prompt から始め、質問をスキップしたいときだけ詳細を追加します。事前に
+どれだけ決めておきたいかに合った行を選んでください。
 
-これが「インストール」の全体です — クローンと 1 回の `pip install` だけ。
-
-### Agent への作業指示
-
-プロジェクトが Agent のディスク上にあり依存関係がインストールされたら、短い指示で
-起動します。Agent は `AGENT_GUIDE.md` からスキルをすでに知っているため、メッセージには
-ドキュメント名とデフォルト以外の選択を指定するだけで十分です。例：
-
-| Agent へのメッセージ | Agent の動作 |
+| あなたの prompt | Agent の動作 |
 |---|---|
-| `用 DIaT 处理 02.pdf` | インタラクティブ実行 — 言語 / エンジン / 固有名詞を確認し、Excel を生成 |
-| `用 DIaT 处理 02.pdf，目标语言 ja，Google，不要问` | 非インタラクティブ：`-l ja -e google --no-input` |
-| `把 spec.pdf 条目化成 Excel，不翻译` | 抽出 + 分割 + Excel のみ：`--no-translate --json --no-input` |
-| `批量处理 ./pdfs 全部，zh-cn，agent 翻译` | Agent モードでディレクトリを一括処理（`-e agent`） |
+| `用 DIaT 处理 my-spec.pdf` | プロジェクトを取得し、依存関係をインストールした後、§3b の 3 つの質問を聞いてから Excel を生成します。**最も安全 — 迷ったらこれを選んでください。** |
+| `Process my-spec.pdf with DIaT` | 同上（英語版）。 |
+| `DIaT my-spec.pdf → English + Japanese, Google engine` | プロジェクトを取得し、依存関係をインストールし、そのまま実行：`-l ja -e google --no-input`。 |
+| `用 DIaT 把 spec.pdf 条目化成 Excel，不翻译` | 抽出 + 分割 + Excel のみ：`--no-translate --json --no-input`。 |
+| `DIaT ./pdfs 全部 → zh-cn, agent engine, batch` | Agent 翻訳モード（`-e agent`）でディレクトリを一括処理。Agent が出力された JSON キューを翻訳します。 |
 
-**推奨:** 簡潔にし、Agent に 3 つのプロンプト（言語 / エンジン / 固有名詞）を
-実行させる — そのインタラクティブフローが最も安全で、ツールの機能を学べます。
-フラグ（`-l`、`-e`、`--no-input`）は、プロンプトを意図的にスキップしたい場合にのみ
-指定してください。
+prompt は Agent が理解できる任意の言語で機能します。上の中国語例は、DIaT の
+デフォルトが中英エンジニアリング文書に調整されているため用いられます。
 
----
+### 3b. Agent が尋ねる 3 つの質問
 
-## 4. Agent 実行プロトコル — Agent が推奨すべき動作
+prompt で言語 / エンジン / 固有名詞が固定されない場合、Agent は翻訳前にこれら
+3 つを尋ねます — これは `AGENT_GUIDE.md` の必須チェックリストであり、義理では
+ありません：
 
-AI Agent がユーザーの代わりに DIaT をオーケストレーションする場合、**推奨される
-動作**は次のとおりです：
+| # | 質問 | 未回答時のデフォルト |
+|---|------|------|
+| (a) | **英語以外の対象言語を 1 つ選択** — 英語 (`en`) は常に対象。あなたが選ぶのは 2 つ目のみ | `zh-cn`（簡体字中国語） |
+| (b) | **翻訳エンジンを選択** — `google`（Translate API）または `agent`（Claude が JSON キューで自動翻訳） | `google` |
+| (c) | **固有名詞をカテゴリ別に追加**（人名、プロジェクトコード、企業…） | スキップ — 組み込みの汎用シード約 30 件を使用 |
 
-1. **デフォルトはインタラクティブ。** ユーザーの代わりに `--no-input` を渡さない
-   — ユーザーが非インタラクティブ / バッチ / 完全自動実行を明示的に要求した場合のみ
-   渡す。
-2. **実行前に** 上記の 3 つの質問 (a) / (b) / (c) をユーザーに尋ねる。CLI フラグで
-   デフォルトを供給できても同様。これはプロジェクトの必須事前チェックリスト
-   （`AGENT_GUIDE.md §2` 参照）。
-3. **インタラクティブパス**（`python 005_main/main.py "file.pdf"`）をスキル使用の
-   主要な方法として推奨 — エラーが最も少なく、ユーザーにツールの機能を教える。
-4. **最初の実行前に依存関係を確認** — 必要なインポートが不足している場合は
-   `--install-deps` を呼び出し、再実行する。
+**推奨:** 少なくとも初回は 3 つのプロンプトに答えてください。このインタラクティブ
+フローでツールの機能を学べ、言語 / エンジンの選択ミスを防げます。意図的に質問を
+スキップしたいときだけ、prompt に選択を明記してください（§3a の非インタラクティブ行を参照）。
 
-ツールは最終的に **人に使ってもらうためのもの** です — Agent の役割は、ユーザーの
-代わりに黙って決定することではなく、3 つのプロンプトの前にユーザーを立たせること
-です。
+### 3c. エンドツーエンド例（1 つの prompt → 完成した Excel）
+
+以下が全会話の形です — あなたが 1 つの prompt を送り、Agent が足りないものを
+インストールし、3 つの質問をするかそのまま実行します。§10 と同じフローを対話形式で
+示します。開始前に何が起きるかがわかるように。
+
+```
+You:  Process my-spec.pdf with DIaT
+
+Agent: [github.com/Aggre-Cloud/DIaT がなければ clone]
+       [実行: python -m 005_main.main --install-deps  ]
+       検出されたソース言語: pt
+       英語以外の対象言語は？（デフォルト zh-cn）
+You:   ja
+
+Agent: 翻訳エンジン — Google または Agent？
+You:   google
+
+Agent: 固有名詞を追加しますか？Enter でスキップ
+       （カテゴリ別リストを表示）
+You:   [Enter]
+
+Agent: [抽出 → 分割 → 検証 → 翻訳 → Excel 書き込み]
+       書き込み完了: output/my-spec_requirements.xlsx
+       要件数 393、本文カバレッジ 100.7 %
+```
+
+### 3d. インストールの実際の流れ（Agent 側）
+
+これらはあなたが手で実行することはありません — Agent が内部で何をしているか
+理解できるように掲載します：
+
+| 状況 | Agent が実行 |
+|---|---|
+| プロジェクトがディスクにない | `git clone https://github.com/Aggre-Cloud/DIAT.git` → `AGENT_GUIDE.md` を読む |
+| 依存関係が欠落 | `PYTHONIOENCODING=utf-8 python -m 005_main.main --install-deps`（`requirements.txt` を自動インストール、非 TTY はプロンプトなし） |
+| オプション拡張が必要 | `--with-optional` を追加し `pysbd` + `ocrmypdf` もインストール |
+| パイプライン実行 | `PYTHONIOENCODING=utf-8 python -m 005_main.main "<file.pdf>" -l ja -e google --no-input` |
+| Agent エンジン選択時 | パイプラインが翻訳列空の `*_agent_queue.json` を書き出し → Agent が各行を翻訳し `write_translations_to_excel()` で保存 |
+
+### 3e. Agent がしてよいこと・してはいけないこと
+
+完全な契約は `AGENT_GUIDE.md §3` にあります。要約版：
+
+- **1 つの prompt がユーザーの全仕事** — Agent がインストール + 実行。ユーザーに
+  手動での clone や `pip install` を求めてはなりません。
+- **デフォルトはインタラクティブ** — ユーザーの代わりに `--no-input` を渡しては
+  なりません。ユーザーが非インタラクティブ / バッチ実行を明示的に要求した場合のみ。
+- **インタラクティブモードで 3 つの質問をスキップしてはなりません**（§3b）。
+- **インタラクティブパス**（`python 005_main/main.py "file.pdf"`、flags なし）を
+  スキル使用の主要な方法として推奨 — 最もエラーが少なく、ユーザーにツールの機能を
+  教えられます。
+- **本文消失を黙って無視してはなりません** — カバレッジ < 80% ならパイプラインが
+  停止し Excel は出力されません。Agent はエラーを表示し、ユーザーが頼まない限り
+  閾値を下げて再試行してはなりません。
+- **実行中に DIaT のソースファイルを変更してはなりません**。ユーザーが提供した
+  固有名詞は実行時キャッシュ / JSON キューに格納され、`config.py` は書き換えられ
+  ません（実行間汚染を防止）。
 
 ---
 

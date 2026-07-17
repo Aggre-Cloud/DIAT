@@ -169,79 +169,110 @@ pip install -r requirements-optional.txt   # opcional: pysbd + ocrmypdf
 
 ---
 
-## 3. Instalación del Skill e invocación del Agent
+## 3. Usar DIaT a través de un Agente de IA
 
-### Instalación del skill en su agente
+DIaT es un **agent skill**: usted envía **un prompt** y el agente hace el resto
+— buscar el proyecto, instalar las dependencias y ejecutar el pipeline completo
+de extracción → traducción → Excel.  No necesita clonar ni ejecutar `pip install`
+manualmente; el agente gestiona la instalación como parte de la ejecución.
 
-DIaT es un proyecto Python normal — "instalar el skill" significa hacer la
-carpeta del proyecto disponible para el agente para que pueda ejecutar
-`005_main/main.py`.
+El `AGENT_GUIDE.md` del repositorio es el manual del agente — un agente capaz lo
+lee en cuanto el proyecto está en el disco, de modo que su prompt solo necesita
+indicar el **documento** y sus **opciones**.
 
-1. **Clonar** el repositorio en una ubicación permanente en el host del agente
-   (o en su propia máquina):
-   ```bash
-   git clone https://github.com/Aggre-Cloud/DIAT.git
-   cd DIaT
-   ```
-2. **Instalar las dependencias una vez** (el agente también puede auto-instalar
-   mediante `--install-deps`, pero una instalación manual es más rápida):
-   ```bash
-   pip install -r requirements.txt
-   ```
-3. **Indicar al agente la raíz del proyecto.**  No se necesita registro ni
-   archivo de configuración — cuando quiera procesar un PDF, indique al agente
-   la ruta absoluta a la raíz del proyecto y al archivo de entrada:
+### 3a. Un prompt es suficiente — templates
 
-   ```
-   Procesar este PDF con DIaT:
-     project → D:/Tool Development/Skills Development/DIaT
-     input   → D:/.../my-spec.pdf
-   ```
+Empiece con el prompt más corto y añada detalles solo cuando quiera omitir una
+pregunta.  Escoja la fila que se corresponda con lo que quiera decidir de
+antemano.
 
-Eso es toda la "instalación" — una clonación más un `pip install`.
-
-### Cómo ordenar al agente que comience a trabajar
-
-Una vez que el proyecto está en el disco del agente y las dependencias están
-instaladas, invóquelo con una instrucción breve.  El agente ya conoce el skill
-desde `AGENT_GUIDE.md`; su mensaje solo necesita nombrar el documento y
-cualquier opción no predeterminada.  Ejemplos:
-
-| Su mensaje al agente | Lo que hace el agente |
+| Su prompt | Lo que hace el agente |
 |---|---|
-| `用 DIaT 处理 02.pdf` | Ejecuta interactivamente — pregunta por idioma / motor / nombres propios, luego produce el Excel |
-| `用 DIaT 处理 02.pdf，目标语言 ja，Google，不要问` | No interactivo: `-l ja -e google --no-input` |
-| `把 spec.pdf 条目化成 Excel，不翻译` | Extraer + dividir + solo Excel: `--no-translate --json --no-input` |
-| `批量处理 ./pdfs 全部，zh-cn，agent 翻译` | Procesar el directorio por lotes en modo Agent (`-e agent`) |
+| `用 DIaT 处理 my-spec.pdf` | Busca el proyecto, instala las dependencias, luego hace las tres preguntas de la §3b antes de generar el Excel. **Inicio más seguro — elójalo si tiene dudas.** |
+| `Process my-spec.pdf with DIaT` | Lo mismo, en inglés. |
+| `DIaT my-spec.pdf → English + Japanese, Google engine` | Busca el proyecto, instala las dependencias, ejecuta directamente: `-l ja -e google --no-input`. |
+| `用 DIaT 把 spec.pdf 条目化成 Excel，不翻译` | Solo extraer + dividir + Excel: `--no-translate --json --no-input`. |
+| `DIaT ./pdfs 全部 → zh-cn, agent engine, batch` | Lote de directorio en modo Agent (`-e agent`); el agente traduce la cola JSON emitida. |
 
-**Recomendado:** sea conciso y deje que el agente ejecute las tres preguntas
-(idioma / motor / nombres propios) — ese flujo interactivo es la vía más
-segura y le enseña lo que la herramienta puede hacer.  Solo especifique flags
-(`-l`, `-e`, `--no-input`) cuando deliberadamente quiera omitir las preguntas.
+Los prompts funcionan en cualquier idioma que el agente entienda.  Los ejemplos
+en chino se usan porque los valores por defecto de DIaT están ajustados para
+documentos de ingeniería chino↔inglés.
 
----
+### 3b. Las tres preguntas que el agente hará
 
-## 4. Protocolo de ejecución del Agent — Lo que el Agent debe recomendar
+Si el prompt no fija idioma / motor / nombres propios, el agente pregunta estas
+tres cosas antes de traducir — es la checklist obligatoria de `AGENT_GUIDE.md`,
+no una cortesía:
 
-Cuando un agente de IA orquesta DIaT en nombre de un usuario, **el
-comportamiento recomendado** es:
+| # | Pregunta | Si no responde (por defecto) |
+|---|----------|------|
+| (a) | **Escoja UN idioma de destino que no sea inglés** — el inglés (`en`) es siempre un destino; usted solo escoge el segundo | `zh-cn` (chino simplificado) |
+| (b) | **Escoja el motor de traducción** — `google` (API de Translate) o `agent` (Claude traduce vía cola JSON) | `google` |
+| (c) | **Añada términos de nombres propios** por categoría (nombre de persona, código de proyecto, empresa, …) | omite — usa las ~30 semillas genéricas integradas |
 
-1. **Usar interactivo como predeterminado.**  NO pasar `--no-input` en nombre
-   del usuario — solo pasarlo cuando el usuario solicite explícitamente una
-   ejecución no interactiva / por lotes / totalmente automatizada.
-2. **Hacer al usuario las tres preguntas (a) / (b) / (c) anteriores** antes de
-   ejecutar, incluso si los flags de CLI podrían proporcionar valores
-   predeterminados.  Esta es la lista de verificación obligatoria previa a la
-   ejecución del proyecto (ver `AGENT_GUIDE.md §2`).
-3. **Recomendar la vía interactiva** (`python 005_main/main.py "file.pdf"`)
-   como la forma principal de usar el skill — es la menos propensa a errores y
-   enseña al usuario lo que la herramienta puede hacer.
-4. **Verificar las dependencias** antes de la primera ejecución: invocar
-   `--install-deps` si falta un import requerido, luego volver a ejecutar.
+**Recomendado:** responda los tres prompts al menos la primera vez.  Ese flujo
+interactivo enseña lo que la herramienta puede hacer y evita ejecuciones con
+idioma / motor erróneos.  Detalle sus opciones en el prompt (como las filas no
+interactivas de la §3a) solo cuando quiera omitir las preguntas a propósito.
 
-La herramienta es, en última instancia, **para que la usen las personas** — el
-trabajo del agente es poner al usuario frente a las tres preguntas, no decidir
-silenciosamente en su nombre.
+### 3c. Ejemplo de extremo a extremo (un prompt → Excel terminado)
+
+Este es el formato completo de la conversación — un prompt suyo, el agente
+instala lo que falte, luego o bien hace las tres preguntas o ejecuta.  El mismo
+flujo del §10, mostrado como diálogo para que sepa qué esperar.
+
+```
+You:  Process my-spec.pdf with DIaT
+
+Agent: [clona github.com/Aggre-Cloud/DIaT si falta]
+       [ejecuta: python -m 005_main.main --install-deps  ]
+       Idioma de origen detectado: pt
+       ¿Qué idioma de destino que no sea inglés? (por defecto zh-cn)
+You:   ja
+
+Agent: ¿Motor de traducción — Google o Agent?
+You:   google
+
+Agent: ¿Añadir términos de nombres propios? Enter para omitir?
+       (muestra la lista categorizada)
+You:   [Enter]
+
+Agent: [extraer → dividir → validar → traducir → escribir Excel]
+       Escrito: output/my-spec_requirements.xlsx
+       393 requisitos, cobertura de cuerpo 100.7 %
+```
+
+### 3d. Cómo ocurre realmente la instalación (lado del agente)
+
+Usted nunca ejecuta estos comandos a mano — se muestran aquí solo para que
+entienda lo que el agente hace internamente:
+
+| Situación | Agente ejecuta |
+|---|---|
+| Proyecto no está en disco | `git clone https://github.com/Aggre-Cloud/DIAT.git` → lee `AGENT_GUIDE.md` |
+| Faltan dependencias | `PYTHONIOENCODING=utf-8 python -m 005_main.main --install-deps` (auto-instala `requirements.txt`; sin prompt en no-TTY) |
+| Se desean extras opcionales | añada `--with-optional` para también instalar `pysbd` + `ocrmypdf` |
+| Pipeline | `PYTHONIOENCODING=utf-8 python -m 005_main.main "<file.pdf>" -l ja -e google --no-input` |
+| Motor Agent elegido | pipeline escribe `*_agent_queue.json` con columnas en blanco → agente traduce cada fila y llama a `write_translations_to_excel()` para persistir |
+
+### 3e. Lo que el agente debe y no debe hacer
+
+El contrato completo está en `AGENT_GUIDE.md §3`.  La versión resumida:
+
+- **Un prompt es todo el trabajo del usuario** — el agente hace instalación +
+  ejecución.  Nunca pida al usuario clonar o ejecutar `pip install` manualmente.
+- **Por defecto interactivo** — nunca pase `--no-input` en nombre del usuario;
+  solo cuando el usuario pida explícitamente una ejecución no interactiva / por lotes.
+- **Nunca omita las tres preguntas** (§3b) en modo interactivo.
+- **Recomiende la vía interactiva** (`python 005_main/main.py "file.pdf"`, sin flags)
+  como la forma principal de usar el skill — es la menos propensa a errores y
+  enseña al usuario lo que la herramienta puede hacer.
+- **Nunca silencie la pérdida de cuerpo** — si la cobertura < 80%, el pipeline se
+  detiene y no se escribe Excel; el agente debe mostrar el error, no reintentar
+  con un umbral menor a menos que el usuario lo pida.
+- **Nunca modifique los archivos fuente de DIaT** durante una ejecución.  Los
+  términos de nombres propios suministrados por el usuario van al cache / cola
+  JSON, nunca al `config.py` (evita contaminación entre ejecuciones).
 
 ---
 

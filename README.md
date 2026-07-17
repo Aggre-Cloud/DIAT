@@ -165,76 +165,110 @@ pip install -r requirements-optional.txt   # optional: pysbd + ocrmypdf
 
 ---
 
-## 3. Install the Skill & Invoke the Agent
+## 3. Use DIaT Through an AI Agent
 
-### Installing the skill into your agent
+DIaT is an **agent skill**: you send **one prompt**, and the agent does the
+rest — fetching the project, installing dependencies, and running the full
+extract → translate → Excel pipeline.  You do not clone or `pip install`
+yourself; the agent handles install as part of its run.
 
-DIaT is a plain Python project — "installing the skill" means making the
-project folder available to the agent so it can run `005_main/main.py`.
+The repo's `AGENT_GUIDE.md` is the agent's instruction manual — a capable
+agent reads it the moment the project is on disk, so your prompt only needs
+to name the **document** and your **choices**.
 
-1. **Clone** the repository to a permanent location on the agent's host
-   (or your own machine):
-   ```bash
-   git clone https://github.com/Aggre-Cloud/DIAT.git
-   cd DIaT
-   ```
-2. **Install dependencies once** (the agent can also self-install via
-   `--install-deps`, but a manual install is faster):
-   ```bash
-   pip install -r requirements.txt
-   ```
-3. **Point the agent at the project root.**  No registration or config
-   file is needed — when you want a PDF processed, tell the agent the
-   absolute path to the project root and the input file:
+### 3a. One prompt is enough — templates
 
-   ```
-   Process this PDF with DIaT:
-     project → D:/Tool Development/Skills Development/DIaT
-     input   → D:/.../my-spec.pdf
-   ```
+Start with the shortest prompt and add detail only when you want to skip a
+question.  Pick the row that matches how much you want to decide up front.
 
-That is the entire "installation" — a clone plus one `pip install`.
-
-### Commanding the agent to start work
-
-Once the project is on the agent's disk and the dependencies are installed,
-invoke it with a short instruction.  The agent already knows the skill from
-`AGENT_GUIDE.md`; your message only needs to name the document and any
-non-default choices.  Examples:
-
-| Your message to the agent | What the agent does |
+| Your prompt | What the agent does |
 |---|---|
-| `用 DIaT 处理 02.pdf` | Runs interactively — asks for language / engine / proper nouns, then produces Excel |
-| `用 DIaT 处理 02.pdf，目标语言 ja，Google，不要问` | Non-interactive: `-l ja -e google --no-input` |
-| `把 spec.pdf 条目化成 Excel，不翻译` | Extract + split + Excel only: `--no-translate --json --no-input` |
-| `批量处理 ./pdfs 全部，zh-cn，agent 翻译` | Batch the directory in Agent mode (`-e agent`) |
+| `用 DIaT 处理 my-spec.pdf` | Fetches the project, installs deps, then asks you the three questions in §3b before producing the Excel. **Safest start — pick this if unsure.** |
+| `Process my-spec.pdf with DIaT` | Same as above, in English. |
+| `DIaT my-spec.pdf → English + Japanese, Google engine` | Fetches project, installs deps, runs straight through: `-l ja -e google --no-input`. |
+| `用 DIaT 把 spec.pdf 条目化成 Excel，不翻译` | Extract + split + Excel only: `--no-translate --json --no-input`. |
+| `DIaT ./pdfsall → zh-cn, agent engine, batch` | Whole-directory batch in Agent-translation mode (`-e agent`); the agent translates the emitted JSON queue. |
 
-**Recommended:** be concise and let the agent run the three prompts
-(language / engine / proper nouns) — that interactive flow is the safest
-path and teaches you what the tool can do.  Only specify flags (`-l`,
-`-e`, `--no-input`) when you deliberately want to skip the prompts.
+The prompts work in any language the agent understands.  The Chinese
+examples are used because DIaT's defaults are tuned for Chinese↔English
+engineering documents.
 
----
+### 3b. The three questions the agent will ask
 
-## 4. Agent Execution Protocol — What the Agent Should Recommend
+If your prompt does not pin down language / engine / proper nouns, the
+agent asks you these before translating — this is `AGENT_GUIDE.md`'s
+mandatory checklist, not a courtesy:
 
-When an AI agent orchestrates DIaT on behalf of a user, **the recommended
-behavior is**:
+| # | Question | If you say nothing (default) |
+|---|----------|------|
+| (a) | **Pick ONE non-English target language** — English (`en`) is always a target; you only choose the second | `zh-cn` (Simplified Chinese) |
+| (b) | **Pick translation engine** — `google` (Translate API) or `agent` (Claude self-translates via JSON queue) | `google` |
+| (c) | **Add proper-noun terms** by category (person name, project code, company, …) | skip — uses built-in ~30 generic seed terms |
 
-1. **Default to interactive.**  Do NOT pass `--no-input` on behalf of the
-   user — only pass it when the user explicitly asks for a non-interactive /
-   batch / fully-automated run.
-2. **Ask the user the three questions (a) / (b) / (c) above** before
-   executing, even if CLI flags could supply defaults.  This is the
-   project's mandatory pre-run checklist (see `AGENT_GUIDE.md §2`).
-3. **Recommend the interactive path** (`python 005_main/main.py "file.pdf"`)
-   as the primary way to use the skill — it is the least error-prone and
-   teaches the user what the tool can do.
-4. **Verify dependencies** before the first run: invoke `--install-deps` if a
-   required import is missing, then re-run.
+**Recommended:** answer the three prompts at least the first time.  That
+interactive flow teaches you what the tool can do and avoids a
+wrong-language / wrong-engine run.  Spell out your choices in the prompt
+(like the non-interactive rows in §3a) only when you deliberately want to
+skip the questions.
 
-The tool is ultimately **for people to use** — the agent's job is to put the
-user in front of the three prompts, not to silently decide on their behalf.
+### 3c. End-to-end example (one prompt → finished Excel)
+
+This is the full conversation shape — one prompt from you, the agent
+installs whatever is missing, then either asks the three questions or runs.
+Same flow as §10, shown as a dialogue so you know what to expect.
+
+```
+You:  Process my-spec.pdf with DIaT
+
+Agent: [clones github.com/Aggre-Cloud/DIaT absent]
+       [runs: python -m 005_main.main --install-deps  ]
+       Detected source language: pt
+       Which NON-English target language? (default zh-cn)
+You:   ja
+
+Agent: Translation engine — Google or Agent?
+You:   google
+
+Agent: Add any proper-noun terms, or press Enter to skip?
+       (shows the categorized term list)
+You:   [Enter]
+
+Agent: [extract → split → validate → translate → write Excel]
+       Written: output/my-spec_requirements.xlsx
+       393 requirements, body coverage 100.7 %
+```
+
+### 3d. How install actually happens (agent-side)
+
+You never run these by hand — shown here only so you understand what the
+agent is doing under the hood:
+
+| Situation | Agent runs |
+|---|---|
+| Project not on disk | `git clone https://github.com/Aggre-Cloud/DIAT.git` → reads `AGENT_GUIDE.md` |
+| Dependencies missing | `PYTHONIOENCODING=utf-8 python -m 005_main.main --install-deps` (auto-installs `requirements.txt`; no prompt in a non-TTY) |
+| Optional extras wanted | add `--with-optional` to also pull `pysbd` + `ocrmypdf` |
+| Pipeline | `PYTHONIOENCODING=utf-8 python -m 005_main.main "<file.pdf>" -l ja -e google --no-input` |
+| Agent engine chosen | pipeline writes `*_agent_queue.json` with blank translation columns → agent translates each row and calls `write_translations_to_excel()` to persist |
+
+### 3e. What the agent must and must not do
+
+The full contract is `AGENT_GUIDE.md §3`.  The short version:
+
+- **One prompt is the user's whole job** — the agent does install + run.
+  It must never ask the user to manually clone or `pip install`.
+- **Default to interactive** — never pass `--no-input` on the user's behalf;
+  only when the user *explicitly* asks for a non-interactive / batch run.
+- **Never skip the three questions** (§3b) in interactive mode.
+- **Recommend the interactive path** as the primary way to use the skill
+  (`python 005_main/main.py "file.pdf"`, no flags) — it is the least
+  error-prone and teaches the user what the tool can do.
+- **Never silence body loss** — if coverage < 80 %, the pipeline halts and
+  no Excel is written; the agent must surface the error, not retry with a
+  lower threshold unless the user asks.
+- **Never modify DIaT's source files** during a run.  User-supplied
+  proper-noun terms go into the live cache / JSON queue, never into
+  `config.py` (avoids cross-run leakage).
 
 ---
 
@@ -343,13 +377,14 @@ DIaT/
 ├── output/                     # generated Excel + JSON intermediates (git-ignored)
 ├── requirements.txt            # pinned runtime dependencies
 ├── requirements-optional.txt   # pysbd + ocrmypdf (better segmentation, scanned-PDF OCR)
+├── docs/
+│   ├── README_zh.md            # user-facing docs (Chinese)
+│   ├── README_pt.md            # user-facing docs (Português)
+│   ├── README_es.md            # user-facing docs (Español)
+│   ├── README_fr.md            # user-facing docs (Français)
+│   ├── README_de.md            # user-facing docs (Deutsch)
+│   └── README_ja.md            # user-facing docs (日本語)
 ├── README.md                   # this file — user-facing docs (English)
-├── README_zh.md                # user-facing docs (Chinese)
-├── README_pt.md                # user-facing docs (Português)
-├── README_es.md                # user-facing docs (Español)
-├── README_fr.md                # user-facing docs (Français)
-├── README_de.md                # user-facing docs (Deutsch)
-├── README_ja.md                # user-facing docs (日本語)
 ├── AGENT_GUIDE.md              # orchestrator / sub-agent usage principles
 └── LICENSE                     # project license
 ```
