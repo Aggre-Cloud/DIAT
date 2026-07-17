@@ -198,6 +198,32 @@ Les prompts fonctionnent dans toute langue comprise par l'agent.  Les exemples e
 chinois sont utilisés car les valeurs par défaut de DIaT sont calées sur les
 documents d'ingénierie chinois↔anglais.
 
+#### Comment décrire votre tâche
+
+Un bon prompt dit à l'agent quatre choses — l'**action**, le **document**, les
+**langues de sortie** et les **détails du domaine**.  Pas besoin des quatre à
+chaque prompt ; plus vous en omettez, plus l'agent demande (voir §3b).  Ci-dessous
+des descriptions naturelles qui fonctionnent dans toute langue — l'agent convertit
+chaque invocation CLI correcte :
+
+| Votre description | Comment l'agent l'interprète |
+|---|---|
+| `cet appel d'offres est en portugais, je veux en anglais + chinois, plein d'abréviations du secteur électrique` | source `pt`, cibles `en + zh-cn`; si vous listez les termes (`SCADA` / `AMI` / `MDM`…), l'agent les protège dans *Codes produit / projet* |
+| `transforme l'appel d'offres japonais en Excel — ne traduis pas, je veux juste la structure` | `--no-translate --json --no-input`; sort les éléments hiérarchiques avec en-têtes en japonais (ID / 章 / 節 / 原文) |
+| `ce PDF est un contrat arabe scanné (~300 pages) ; anglais + chinois, moteur Agent pour la qualité` | attend un fallback OCR (prévient d'abord si `ocrmypdf`/`tesseract` manque) ; `-l zh-cn -e agent --no-input` |
+| `lot de tous les pdf de ce dossier, cible chinois, Google rapide d'abord` | lot de dossier (`./pdfs`), `-l zh-cn -e google --no-input` |
+| `traite 02.pdf, original en chinois, je veux seulement la colonne anglais` | source `zh`, une seule cible non anglaise ; l'agent garde la colonne en chinois et ne produit que la colonne `English` |
+
+**Détails qui aident l'agent à mieux faire :**
+
+- **Industrie / domaine** — énergie, pharma, juridique, construction… le nommer charge la protection de noms propres adéquate et avertit des abréviations du secteur.
+- **Noms propres connus** — codes projet (`MDC`, `SCADA`, `HPLC`), entreprises, personnes.  Donnez-les séparés par des virgules et l'agent les ajoute à la liste `DO_NOT_TRANSLATE` pour qu'ils survivent intacts à la traduction.
+- **Langue source** (si vous la savez) — la détection auto est fiable, mais la donner à l'avance évite un aller-retour sur les documents courts ou multilingues.
+- **Scanné vs. numérique** — les PDF scannés déclenchent un fallback OCR (~1–5 s/page) ; le signaler permet à l'agent de vérifier `ocrmypdf` avant une longue exécution.
+- **Portée** — un fichier s'exécute une fois ; un dossier s'exécute par lot.  Vous pouvez ajouter des qualificatifs comme "seulement les 10 premières pages" ou "sauter l'annexe" et l'agent réduit le travail.
+
+Vous pouvez mélanger librement en une phrase — p. ex. `traite cet appel d'offres électrique scanné (portugais), traduis en anglais + chinois, protège les codes MDC/SCADA/AMI` est déjà un prompt complet.
+
 ### 3b. Les trois questions que l'agent posera
 
 Si le prompt ne fixe pas langue / moteur / noms propres, l'agent pose ces trois

@@ -189,9 +189,42 @@ question.  Pick the row that matches how much you want to decide up front.
 | `用 DIaT 把 spec.pdf 条目化成 Excel，不翻译` | Extract + split + Excel only: `--no-translate --json --no-input`. |
 | `DIaT ./pdfsall → zh-cn, agent engine, batch` | Whole-directory batch in Agent-translation mode (`-e agent`); the agent translates the emitted JSON queue. |
 
-The prompts work in any language the agent understands.  The Chinese
-examples are used because DIaT's defaults are tuned for Chinese↔English
-engineering documents.
+DIaT's defaults are tuned for Chinese↔English engineering documents.
+
+#### How to describe your task
+
+A good prompt tells the agent four things — the **action**, the **document**,
+the **output language(s)**, and any **domain specifics**.  You do not need all
+four in every prompt; the more you leave out, the more the agent asks (see
+§3b).  Below are natural descriptions that work in any language — the agent
+turns each into the right CLI invocation:
+
+| Your description | How the agent interprets it |
+|---|---|
+| `我这个标书是葡语的，要翻成英文和中文，里面有很多电力行业缩写` | source `pt`, targets `en + zh-cn`; agent protects industry terms (`SCADA` / `AMI` / `MDM` …) under *Product / project codes* if you list them |
+| `Turn the Japanese bid into an Excel — don't translate, I only need the structure` | `--no-translate --json --no-input`; outputs the hierarchical items with localized Japanese headers (ID / 章 / 節 / 原文) |
+| `This PDF is a scanned Arabic contract (~300 pages); English + Chinese, Agent engine for quality` | expects OCR fallback (warns first if `ocrmypdf`/`tesseract` is missing); `-l zh-cn -e agent --no-input` |
+| `批处理这个文件夹里全部 pdf，目标中文，Google 快翻先过一遍` | whole-directory batch (`./pdfs`), `-l zh-cn -e google --no-input` |
+| `处理 02.pdf，原文中文，只要英文翻译这一列` | source `zh`, single non-English target; agent keeps the Chinese column as-is and produces only the `English` column |
+
+**Details that make the agent do a better job:**
+
+- **Industry / domain** — power, pharma, legal, construction… naming it lets
+  the agent load the right kind of proper-noun protection and warn about
+  domain-specific abbreviations.
+- **Known proper nouns** — project codes (`MDC`, `SCADA`, `HPLC`), company
+  names, person names.  Hand them over comma-separated and the agent adds them
+  to the `DO_NOT_TRANSLATE` list so they survive translation intact.
+- **Source language** (if you know it) — auto-detection is reliable, but telling
+  the agent upfront saves a round-trip on short or mixed-language documents.
+- **Scanned vs. digital** — scanned PDFs trigger OCR fallback (~1–5 s/page);
+  flagging this lets the agent check for `ocrmypdf` first, so it can install
+  or warn before a long run.
+- **Scope** — a single path runs once; a directory runs batch.  You can add
+  qualifiers like "only the first 10 pages" or "skip the appendix" and the
+  agent narrows the work accordingly.
+
+You can freely mix these into one sentence — e.g. `处理这份扫描的电力招标书（葡语），翻成中英双语，保护 MDC/SCADA/AMI 这些项目代号` is a complete prompt.
 
 ### 3b. The three questions the agent will ask
 

@@ -204,6 +204,32 @@ Prompts funktionieren in jeder Sprache, die der Agent versteht.  Die
 Beispiele auf Chinesisch gewählt, weil DIaTs Standardwerte auf
 Chinesisch↔Englisch-Ingenieurdokumente abgestimmt sind.
 
+#### Wie Sie Ihre Aufgabe beschreiben
+
+Ein guter Prompt gibt dem Agenten vier Dinge mit — die **Aktion**, das
+**Dokument**, die **Ausgabesprachen** und **Domänendetails**.  Nicht jeder Prompt
+braucht alle vier; je mehr Sie weglassen, desto mehr fragt der Agent (siehe
+§3b).  Unten natürliche Beschreibungen, die in jeder Sprache funktionieren —
+der Agent wandelt jede in den richtigen CLI-Aufruf um:
+
+| Ihre Beschreibung | Wie der Agent sie interpretiert |
+|---|---|
+| `diese Ausschreibung ist auf Portugiesisch, ich will Englisch + Chinesisch, viele Abkürzungen aus dem Energiesektor` | Quelle `pt`, Ziele `en + zh-cn`; wenn Sie die Begriffe auflisten (`SCADA` / `AMI` / `MDM`…), schützt der Agent sie unter *Produkt- / Projekt-Codes* |
+| `die japanische Ausschreibung in Excel umwandeln — nicht übersetzen, ich will nur die Struktur` | `--no-translate --json --no-input`; gibt die hierarchischen Elemente mit japanischen Kopfzeilen aus (ID / 章 / 節 / 原文) |
+| `dieses PDF ist ein gescanntes arabisches Vertrag (~300 Seiten); Englisch + Chinesisch, Agent-Engine für Qualität` | erwartet OCR-Fallback (warnt zuerst, wenn `ocrmypdf`/`tesseract` fehlt); `-l zh-cn -e agent --no-input` |
+| `Stapelverarbeitung aller pdf in diesem Ordner, Ziel Chinesisch, Google schnelle Übersicht` | Verarbeitungsstapel des Ordners (`./pdfs`), `-l zh-cn -e google --no-input` |
+| `Verarbeite 02.pdf, Original Chinesisch, ich will nur die englische Spalte` | Quelle `zh`, ein einziges nicht-englisches Ziel; der Agent behält die chinesische Spalte bei und erzeugt nur die Spalte `English` |
+
+**Details, die dem Agenten helfen, besser zu arbeiten:**
+
+- **Branche / Domäne** — Energie, Pharma, Recht, Bau… die Nennung lädt den passenden Eigennamen-Schutz und warnt vor branchenspezifischen Abkürzungen.
+- **Bekannte Eigennamen** — Projekt-Codes (`MDC`, `SCADA`, `HPLC`), Firmen, Personen.  Kommagetrennt übergeben, und der Agent fügt sie der Liste `DO_NOT_TRANSLATE` hinzu, sodass sie intakt überleben.
+- **Quellsprache** (falls bekannt) — die automatische Erkennung ist zuverlässig, aber vorab mitteilen spart einen Durchlauf bei kurzen oder mehrsprachigen Dokumenten.
+- **Gescannt vs. digital** — gescannte PDFs lösen OCR-Fallback aus (~1–5 s/Seite); es zu markieren lässt den Agenten `ocrmypdf` vor einem langen Lauf prüfen.
+- **Umfang** — eine Datei läuft einmal; ein Ordner läuft als Stapel.  Sie können Einschränkungen wie „nur die ersten 10 Seiten" oder „Anhang überspringen" ergänzen und der Agent engt die Arbeit entsprechend ein.
+
+Sie können alles frei in einen Satz mischen — z. B. `verarbeite diese gescannte Energie-Ausschreibung (Portugiesisch), übersetze in Englisch + Chinesisch, schütze die Codes MDC/SCADA/AMI` ist ein vollständiger Prompt.
+
 ### 3b. Die drei Fragen, die der Agent stellt
 
 Wenn der Prompt Sprache / Engine / Eigennamen nicht festlegt, stellt der

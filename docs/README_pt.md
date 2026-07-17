@@ -197,6 +197,32 @@ Os prompts funcionam em qualquer idioma que o agente entenda. Os exemplos em
 chinês são usados porque os padrões do DIaT são ajustados para documentos
 de engenharia chinês↔inglês.
 
+#### Como descrever a tarefa
+
+Um bom prompt diz ao agente quatro coisas — a **ação**, o **documento**, os
+**idiomas de saída** e os **detalhes do domínio**. Não precisa de todos em
+cada prompt; quanto mais omitir, mais o agente pergunta (ver §3b). Abaixo
+estão descrições naturais que funcionam em qualquer idioma — o agente converte
+cada uma na invocação CLI correta:
+
+| Sua descrição | Como o agente interpreta |
+|---|---|
+| `este edital meu é em português, preciso em inglês e chinês, tem muitas abreviações do setor elétrico` | origem `pt`, destinos `en + zh-cn`; se listar os termos (`SCADA` / `AMI` / `MDM`…), o agente protege-os em *Códigos de produto / projeto* |
+| `transforme o edital japonês em Excel — não traduza, só quero a estrutura` | `--no-translate --json --no-input`; sai os itens hierárquicos com cabeçalhos em japonês (ID / 章 / 節 / 原文) |
+| `este PDF é um contrato árabe escaneado (~300 págs); inglês + chinês, mecanismo Agent para qualidade` | espera fallback OCR (avisa antes se faltar `ocrmypdf`/`tesserant`); `-l zh-cn -e agent --no-input` |
+| `lote de todos os pdfs desta pasta, destino chinês, Google rápido primeiro` | lote de diretório (`./pdfs`), `-l zh-cn -e google --no-input` |
+| `processe 02.pdf, original em chinês, quero só a coluna em inglês` | origem `zh`, um só destino não-inglês; o agente mantém a coluna em chinês e produz só a coluna `English` |
+
+**Detalhes que fazem o agente trabalhar melhor:**
+
+- **Indústria / domínio** — energia, farmácia, jurídico, construção… nomear carrega a proteção de nomes próprios certa e avisa sobre abreviações do setor.
+- **Nomes próprios conhecidos** — códigos de projeto (`MDC`, `SCADA`, `HPLC`), empresas, pessoas. Entregue separados por vírgula e o agente adiciona à lista `DO_NOT_TRANSLATE` para que sobrevivam intactos à tradução.
+- **Idioma de origem** (se souber) — a detecção automática é fiável, mas adiantar poupa uma volta em documentos curtos ou com vários idiomas.
+- **Escaneado vs. digital** — PDFs escaneados acionam fallback OCR (~1–5 s/pág.); sinalizar permite ao agente verificar o `ocrmypdf` antes de uma corrida longa.
+- **Escopo** — um ficheiro corre uma vez; uma pasta corre em lote. Pode acrescentar qualificadores como "só as 10 primeiras páginas" ou "saltar o apêndice" e o agente reduz o trabalho.
+
+Pode misturar tudo numa frase — ex. `processe este edital elétrico escaneado (português), traduza para inglês e chinês, proteja os códigos MDC/SCADA/AMI` já é um prompt completo.
+
 ### 3b. As três perguntas que o agente fará
 
 Se o prompt não fixar idioma / engine / nomes próprios, o agente pergunta
