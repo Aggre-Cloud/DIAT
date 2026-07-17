@@ -4,7 +4,7 @@
 > requisitos jerárquicos de documentos PDF, los descompone por estructura, los
 > traduce y exporta un informe en Excel.
 
-Idioma: **Español** (este archivo) · **English** → [`README.md`](README.md) · **中文** → [`README_zh.md`](README_zh.md) · **Português (Brasil)** → [`README_pt.md`](README_pt.md) · **Français** → [`README_fr.md`](README_fr.md) · **Deutsch** → [`README_de.md`](README_de.md) · **日本語** → [`README_ja.md`](README_ja.md)
+Idioma: **Español** (este archivo) · **English** → [`README.md`](../README.md) · **中文** → [`README_zh.md`](README_zh.md) · **Português (Brasil)** → [`README_pt.md`](README_pt.md) · **Français** → [`README_fr.md`](README_fr.md) · **Deutsch** → [`README_de.md`](README_de.md) · **日本語** → [`README_ja.md`](README_ja.md)
 
 ---
 
@@ -19,10 +19,10 @@ comparten una forma común:
 
 - **Numeración jerárquica**: una estructura de 5 niveles que el analizador modela
   internamente como capítulo → sección → artículo → cláusula → ítem
-  (章 → 节 → 条 → 款 → 项), que a menudo combina esquemas de numeración como
+  (capítulo → sección → artículo → cláusula → item), que a menudo combina esquemas de numeración como
   `Art. 1º`, `CAPÍTULO`, `1.2.1`, `（1）`, `(a)`, números romanos, números
   circulares.  Cada requisito lleva internamente su `hierarchy_path` completo,
-  pero el Excel exportado expone solo los dos niveles superiores (章 / 节) como
+  pero el Excel exportado expone solo los dos niveles superiores (Capítulo / Sección) como
   columnas estructurales dedicadas — los niveles más profundos permanecen
   integrados en el cuerpo del requisito para que la fila siga siendo legible.
 - **Multilingüe**: una especificación en portugués para un proyecto respaldado
@@ -70,7 +70,7 @@ libro de Excel estructurado y traducido con un solo comando:
    una columna; usted elige la otra.
 5. **Validar** que no se haya perdido texto del cuerpo silenciosamente (anula si
    la cobertura < 80% — la salida parcial es intolerable).
-6. **Exportar** un libro de Excel: `ID / 章 / 节 / 需求原文 / English / <su
+6. **Exportar** un libro de Excel: `ID / Capítulo / Sección / Original / English / <su
    idioma>`.
 
 ### Para quién es
@@ -274,7 +274,7 @@ silenciosamente en su nombre.
 | Idioma de destino | Inglés (fijo) + un idioma elegido por el usuario (cualquiera de googletrans / Claude code) |
 | Motor de traducción | Google Translate (directo) o Agent (Claude traduce por sí mismo) |
 | Protección de nombres propios | Sustitución con marcadores de posición (semilla genérica integrada de ~30 términos + adiciones proporcionadas por el usuario), restaurados tras la traducción |
-| Formato de salida | Libro de Excel (ID / 章 / 节 / 需求原文 / English / <su idioma>) |
+| Formato de salida | Libro de Excel (ID / Capítulo / Sección / Original / English / <su idioma>) |
 | Validación del cuerpo | Verificación de cobertura obligatoria; < 80% detiene el pipeline sin salida |
 | Preservación del título | Las líneas de encabezado siempre se emiten como parte del cuerpo de cada requisito (para auditoría de cobertura + rastreo de contexto); los encabezados con cuerpo vacío se sintetizan automáticamente |
 | Interacción predeterminada | Interactivo por defecto — pregunta por idioma de destino / motor de traducción / adiciones de nombres propios; solo omite cuando el usuario lo solicita explícitamente o pasa `--no-input` |
@@ -317,7 +317,7 @@ ParseResult  { roots, items, meta, raw_rows }
    │
    ▼
 [004_excel_generator]  libro de Excel
-        ID | 章 | 节 | 需求原文 | English | <su idioma>
+        ID | Capítulo | Sección | Original | English | <su idioma>
 ```
 
 ### Invariantes clave
@@ -350,8 +350,12 @@ DIaT/
 ├── output/                     # Excel generado + JSON intermedios (ignorado por git)
 ├── requirements.txt            # dependencias de tiempo de ejecución fijadas
 ├── requirements-optional.txt   # pysbd + ocrmypdf (mejor segmentación, OCR para PDF escaneados)
-├── README.md                   # este archivo — documentación para el usuario (inglés)
-├── README_zh.md                # documentación para el usuario (chín), espejo completo
+├── docs/
+│   ├── README_es.md            # este archivo — documentación para el usuario (español)
+│   ├── README_pt.md            # documentación para el usuario (portugués)
+│   ├── README_fr.md            # documentación para el usuario (francés)
+│   ├── README_de.md            # documentación para el usuario (alemán)
+│   └── README_ja.md            # documentación para el usuario (japonés)
 ├── AGENT_GUIDE.md              # principios de uso del orquestador / sub-agente
 └── LICENSE                     # licencia del proyecto
 ```
@@ -617,9 +621,9 @@ encabezados localizados al idioma de destino que no es inglés):
 | Columna | Campo | Descripción |
 |---------|-------|-------------|
 | A | ID | REQ-0001, incremental |
-| B | 章 (Capítulo) | Número y título del capítulo de nivel superior |
-| C | 节 (Sección) | Número y título del subcapítulo |
-| D | 需求原文 (Original) | Oración completa en el idioma de origen |
+| B | Capítulo | Número y título del capítulo de nivel superior |
+| C | Sección | Número y título del subcapítulo |
+| D | Original | Oración completa en el idioma de origem |
 | E | English translation | Siempre presente |
 | F | <su idioma> translation | El idioma elegido por el usuario |
 

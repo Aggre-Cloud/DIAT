@@ -4,7 +4,7 @@
 > requirements out of PDF documents, decompose by structure, translate, and
 > export an Excel report.
 
-Language: **English** (this file) · **中文** → [`README_zh.md`](README_zh.md) · **Português (Brasil)** → [`README_pt.md`](README_pt.md) · **Español** → [`README_es.md`](README_es.md) · **Français** → [`README_fr.md`](README_fr.md) · **Deutsch** → [`README_de.md`](README_de.md) · **日本語** → [`README_ja.md`](README_ja.md)
+Language: **English** (this file) · **中文** → [`README_zh.md`](docs/README_zh.md) · **Português (Brasil)** → [`README_pt.md`](docs/README_pt.md) · **Español** → [`README_es.md`](docs/README_es.md) · **Français** → [`README_fr.md`](docs/README_fr.md) · **Deutsch** → [`README_de.md`](docs/README_de.md) · **日本語** → [`README_ja.md`](docs/README_ja.md)
 
 ---
 
@@ -18,11 +18,11 @@ specifications, contracts, regulations, and standards.  These documents share
 a common shape:
 
 - **Hierarchically numbered**: a 5-depth structure the parser models internally
-  as chapter → section → article → clause → item (章 → 节 → 条 → 款 → 项),
+  as chapter → section → article → clause → item,
   often mixing numbering schemes like `Art. 1º`, `CAPÍTULO`, `1.2.1`, `（1）`,
   `(a)`, roman numerals, circled numbers.  Every requirement carries its full
   `hierarchy_path` internally, but the exported Excel exposes only the top two
-  levels (章 / 节) as dedicated structural columns — deeper levels stay folded
+  levels (Chapter / Section) as dedicated structural columns — deeper levels stay folded
   into the requirement body so the row stays readable.
 - **Multi-language**: a Portuguese specification for a Chinese-backed project,
   an Arabic tender reviewed by a German contractor, a Russian O&M plan read by a
@@ -68,7 +68,7 @@ structured, translated Excel workbook in a single command:
    one column; you pick the other.
 5. **Validate** that no body text was silently dropped (aborts if coverage <
    80% — partial output is intolerable).
-6. **Export** an Excel workbook: `ID / 章 / 节 / 需求原文 / English / <your
+6. **Export** an Excel workbook: `ID / Chapter / Section / Source / English / <your
    language>`.
 
 ### Who it is for
@@ -267,7 +267,7 @@ user in front of the three prompts, not to silently decide on their behalf.
 | Target language | English (fixed) + one user-picked language (any googletrans / Claude code) |
 | Translation engine | Google Translate (direct) or Agent (Claude translates on its own) |
 | Proper-noun protection | Placeholder substitution (built-in ~30 generic terms + user-supplied additions), restored after translation |
-| Output format | Excel workbook (ID / 章 / 节 / 需求原文 / English / <your language>) |
+| Output format | Excel workbook (ID / Chapter / Section / Source / English / <your language>) |
 | Body validation | Mandatory coverage check; < 80% halts the pipeline with no output |
 | Title preservation | Heading lines are always emitted as part of each requirement's body (for coverage audit + context tracing); empty-body headings are auto-synthesized |
 | Default interaction | Interactive by default — prompts for target language / translation engine / proper-noun additions; only skips when the user explicitly asks or passes `--no-input` |
@@ -310,7 +310,7 @@ ParseResult  { roots, items, meta, raw_rows }
    │
    ▼
 [004_excel_generator]  Excel workbook
-        ID | 章 | 节 | 需求原文 | English | <your language>
+        ID | Chapter | Section | Source | English | <your language>
 ```
 
 ### Key invariants
@@ -617,9 +617,9 @@ non-English target language):
 | Column | Field | Description |
 |--------|-------|-------------|
 | A | ID | REQ-0001, incrementing |
-| B | 章 (Chapter) | Top-level chapter number + title |
-| C | 节 (Section) | Sub-chapter number + title |
-| D | 需求原文 (Source) | Full sentence in the source language |
+| B | Chapter | Top-level chapter number + title |
+| C | Section | Sub-chapter number + title |
+| D | Source | Full sentence in the source language |
 | E | English translation | Always present |
 | F | <your language> translation | The user-picked language |
 

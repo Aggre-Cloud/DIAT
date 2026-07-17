@@ -4,7 +4,7 @@
 > exigences hiérarchiques des documents PDF, les décompose par structure, les
 > traduit et exporte un rapport Excel.
 
-Langue : **Français** (ce fichier) · **English** → [`README.md`](README.md) · **中文** → [`README_zh.md`](README_zh.md) · **Português (Brasil)** → [`README_pt.md`](README_pt.md) · **Español** → [`README_es.md`](README_es.md) · **Deutsch** → [`README_de.md`](README_de.md) · **日本語** → [`README_ja.md`](README_ja.md)
+Langue : **Français** (ce fichier) · **English** → [`README.md`](../README.md) · **中文** → [`README_zh.md`](README_zh.md) · **Português (Brasil)** → [`README_pt.md`](README_pt.md) · **Español** → [`README_es.md`](README_es.md) · **Deutsch** → [`README_de.md`](README_de.md) · **日本語** → [`README_ja.md`](README_ja.md)
 
 ---
 
@@ -19,10 +19,10 @@ documents partagent une forme commune :
 
 - **Numérotation hiérarchique** : une structure à 5 niveaux que le parseur modélise
   en interne comme chapitre → section → article → clause → item
-  (章 → 节 → 条 → 款 → 项), mélangeant souvent des schémas de numérotation comme
+  (chapitre → section → article → clause → item), mélangeant souvent des schémas de numérotation comme
   `Art. 1º`, `CAPÍTULO`, `1.2.1`, `（1）`, `(a)`, des chiffres romains, des
   nombres cerclés. Chaque exigence porte son `hierarchy_path` complet en interne,
-  mais le Excel exporté n'expose que les deux niveaux supérieurs (章 / 节) en
+  mais le Excel exporté n'expose que les deux niveaux supérieurs (Chapitre / Section) en
   tant que colonnes structurelles dédiées — les niveaux plus profonds restent
   repliés dans le corps de l'exigence afin que la ligne reste lisible.
 - **Multilingue** : une spécification en portugais pour un projet soutenu par la
@@ -69,7 +69,7 @@ classeur Excel structuré et traduit en une seule commande :
    une colonne ; vous choisissez l'autre.
 5. **Valider** qu'aucun texte du corps n'a été silencieusement abandonné
    (abandonne si couverture < 80 % — une sortie partielle est intolérable).
-6. **Exporter** un classeur Excel : `ID / 章 / 节 / 需求原文 / English / <votre
+6. **Exporter** un classeur Excel : `ID / Chapitre / Section / Source / English / <votre
    langue>`.
 
 ### À qui il s'adresse
@@ -276,7 +276,7 @@ silencieusement en son nom.
 | Langue cible | Anglais (fixe) + une langue choisie par l'utilisateur (tout googletrans / Claude code) |
 | Moteur de traduction | Google Translate (direct) ou Agent (Claude traduit de lui-même) |
 | Protection des noms propres | Substitution par placeholder (environ 30 termes génériques intégrés + ajouts fournis par l'utilisateur), restaurée après traduction |
-| Format de sortie | Classeur Excel (ID / 章 / 节 / 需求原文 / English / <votre langue>) |
+| Format de sortie | Classeur Excel (ID / Chapitre / Section / Source / English / <votre langue>) |
 | Validation du corps | Vérification obligatoire de la couverture ; < 80 % stoppe le pipeline sans sortie |
 | Préservation des titres | Les lignes d'en-tête sont toujours émises comme partie du corps de chaque exigence (pour l'audit de couverture + le traçage de contexte) ; les en-têtes à corps vide sont auto-synthétisés |
 | Interaction par défaut | Interactif par défaut — invite pour la langue cible / le moteur de traduction / les ajouts de noms propres ; ne passe que si l'utilisateur le demande explicitement ou passe `--no-input` |
@@ -319,7 +319,7 @@ ParseResult  { roots, items, meta, raw_rows }
    │
    ▼
 [004_excel_generator]  Classeur Excel
-        ID | 章 | 节 | 需求原文 | English | <votre langue>
+        ID | Chapitre | Section | Source | English | <votre langue>
 ```
 
 ### Invariants clés
@@ -352,8 +352,14 @@ DIaT/
 ├── output/                     # Excel généré + intermédiaires JSON (ignoré par git)
 ├── requirements.txt            # Dépendances d'exécution épinglées
 ├── requirements-optional.txt   # pysbd + ocrmypdf (meilleure segmentation, OCR PDF numérisés)
-├── README.md                   # ce fichier — documentation utilisateur (anglais)
-├── README_zh.md                # documentation utilisateur (chinois), miroir complet
+├── README.md                   # documentation utilisateur (anglais)
+├── docs/
+│   ├── README_zh.md            # documentation utilisateur (chinois)
+│   ├── README_pt.md            # documentation utilisateur (portugais)
+│   ├── README_es.md            # documentation utilisateur (espagnol)
+│   ├── README_fr.md            # ce fichier — documentation utilisateur (français)
+│   ├── README_de.md            # documentation utilisateur (allemand)
+│   └── README_ja.md            # documentation utilisateur (japonais)
 ├── AGENT_GUIDE.md              # Principes d'utilisation pour l'orchestrateur / sous-agent
 └── LICENSE                     # Licence du projet
 ```
@@ -626,9 +632,9 @@ dans la langue cible non anglaise) :
 | Colonne | Champ | Description |
 |--------|-------|-------------|
 | A | ID | REQ-0001, incrémentiel |
-| B | 章 (Chapitre) | Numéro et titre du chapitre de plus haut niveau |
-| C | 节 (Section) | Numéro et titre du sous-chapitre |
-| D | 需求原文 (Source) | Phrase complète dans la langue source |
+| B | Chapitre | Numéro et titre du chapitre de plus haut niveau |
+| C | Section | Numéro et titre du sous-chapitre |
+| D | Source | Phrase complète dans la langue source |
 | E | Traduction anglaise | Toujours présente |
 | F | Traduction <votre langue> | La langue choisie par l'utilisateur |
 

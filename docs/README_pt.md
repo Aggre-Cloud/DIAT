@@ -4,7 +4,7 @@
 > requisitos hierárquicos de documentos PDF, decompõe por estrutura, traduz e
 > exporta um relatório em Excel.
 
-Language: **Português (Brasil)** (este arquivo) · **English** → [`README.md`](README.md) · **中文** → [`README_zh.md`](README_zh.md) · **Español** → [`README_es.md`](README_es.md) · **Français** → [`README_fr.md`](README_fr.md) · **Deutsch** → [`README_de.md`](README_de.md) · **日本語** → [`README_ja.md`](README_ja.md)
+Language: **Português (Brasil)** (este arquivo) · **English** → [`README.md`](../README.md) · **中文** → [`README_zh.md`](README_zh.md) · **Español** → [`README_es.md`](README_es.md) · **Français** → [`README_fr.md`](README_fr.md) · **Deutsch** → [`README_de.md`](README_de.md) · **日本語** → [`README_ja.md`](README_ja.md)
 
 ---
 
@@ -19,11 +19,11 @@ compartilham uma forma comum:
 
 - **Numerados hierarquicamente**: uma estrutura de 5 níveis que o parser modela
   internamente como capítulo → seção → artigo → cláusula → item
-  (章 → 节 → 条 → 款 → 项), frequentemente misturando esquemas de numeração
+  (capítulo → seção → artigo → cláusula → item), frequentemente misturando esquemas de numeração
   como `Art. 1º`, `CAPÍTULO`, `1.2.1`, `（1）`, `(a)`, algarismos romanos,
   números circulados. Cada requisito carrega seu `hierarchy_path` completo
   internamente, mas o Excel exportado expõe apenas os dois níveis superiores
-  (章 / 节) como colunas estruturais dedicadas — os níveis mais profundos
+  (Capítulo / Seção) como colunas estruturais dedicadas — os níveis mais profundos
   permanecem incorporados no corpo do requisito para que a linha fique legível.
 - **Multilíngue**: uma especificação em português para um projeto com
   investimento chinês, um edital em árabe revisado por um contratado alemão,
@@ -70,7 +70,7 @@ pasta de trabalho do Excel estruturada e traduzida com um único comando:
    uma coluna; você escolhe a outra.
 5. **Valida** se nenhum texto do corpo foi silenciosamente descartado (aborta
    se a cobertura for < 80% — saída parcial é intolerável).
-6. **Exporta** uma pasta de trabalho do Excel: `ID / 章 / 节 / 需求原文 /
+6. **Exporta** uma pasta de trabalho do Excel: `ID / Capítulo / Seção / Original /
    English / <seu idioma>`.
 
 ### Para quem é
@@ -274,7 +274,7 @@ silenciosamente em seu lugar.
 | Idioma de destino | Inglês (fixo) + um idioma escolhido pelo usuário (qualquer googletrans / Claude code) |
 | Mecanismo de tradução | Google Translate (direto) ou Agent (Claude traduz por conta própria) |
 | Proteção de nomes próprios | Substituição por placeholder (termos genéricos embutidos ~30 + adições fornecidas pelo usuário), restaurados após a tradução |
-| Formato de saída | Pasta de trabalho do Excel (ID / 章 / 节 / 需求原文 / English / <seu idioma>) |
+| Formato de saída | Pasta de trabalho do Excel (ID / Capítulo / Seção / Original / English / <seu idioma>) |
 | Validação do corpo | Verificação obrigatória de cobertura; < 80% interrompe o pipeline sem saída |
 | Preservação de título | Linhas de cabeçalho são sempre emitidas como parte do corpo de cada requisito (para auditoria de cobertura + rastreamento de contexto); cabeçalhos de corpo vazio são auto-sintetizados |
 | Interação padrão | Interativo por padrão — solicita idioma de destino / mecanismo de tradução / adições de nomes próprios; só pula quando o usuário pede explicitamente ou passa `--no-input` |
@@ -317,7 +317,7 @@ ParseResult  { roots, items, meta, raw_rows }
    │
    ▼
 [004_excel_generator]  pasta de trabalho do Excel
-        ID | 章 | 节 | 需求原文 | English | <seu idioma>
+        ID | Capítulo | Seção | Original | English | <seu idioma>
 ```
 
 ### Invariantes principais
@@ -350,8 +350,14 @@ DIaT/
 ├── output/                     # Excel gerado + intermediários JSON (ignorados no git)
 ├── requirements.txt            # dependências de runtime fixadas
 ├── requirements-optional.txt   # pysbd + ocrmypdf (melhor segmentação, OCR de PDF digitalizado)
-├── README.md                   # este arquivo — documentação voltada ao usuário (inglês)
-├── README_zh.md                # documentação voltada ao usuário (chinês), espelho completo
+├── README.md                   # documentação voltada ao usuário (inglês)
+├── docs/
+│   ├── README_zh.md            # documentação voltada ao usuário (chinês)
+│   ├── README_pt.md            # este arquivo — documentação voltada ao usuário (português)
+│   ├── README_es.md            # documentação voltada ao usuário (espanhol)
+│   ├── README_fr.md            # documentação voltada ao usuário (francês)
+│   ├── README_de.md            # documentação voltada ao usuário (alemão)
+│   └── README_ja.md            # documentação voltada ao usuário (japonês)
 ├── AGENT_GUIDE.md              # princípios de uso para orquestrador / sub-agent
 └── LICENSE                     # licença do projeto
 ```
@@ -622,9 +628,9 @@ localizados no idioma de destino que não é inglês):
 | Coluna | Campo | Descrição |
 |--------|-------|-----------|
 | A | ID | REQ-0001, incrementando |
-| B | 章 (Capítulo) | Número + título do capítulo de nível superior |
-| C | 节 (Seção) | Número + título do subcapítulo |
-| D | 需求原文 (Original) | Frase completa no idioma de origem |
+| B | Capítulo | Número + título do capítulo de nível superior |
+| C | Seção | Número + título do subcapítulo |
+| D | Original | Frase completa no idioma de origem |
 | E | English translation | Sempre presente |
 | F | <seu idioma> translation | O idioma escolhido pelo usuário |
 

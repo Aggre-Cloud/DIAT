@@ -3,7 +3,7 @@
 > 结构化需求提取与翻译工具 — 从 PDF 文档中提取层级化需求，按结构拆分并翻译，
 > 输出 Excel 报表。
 
-语言：**中文**（本文件） · **English** → [`README.md`](README.md) · **Português (Brasil)** → [`README_pt.md`](README_pt.md) · **Español** → [`README_es.md`](README_es.md) · **Français** → [`README_fr.md`](README_fr.md) · **Deutsch** → [`README_de.md`](README_de.md) · **日本語** → [`README_ja.md`](README_ja.md)
+语言：**中文**（本文件） · **English** → [`README.md`](../README.md) · **Português (Brasil)** → [`README_pt.md`](README_pt.md) · **Español** → [`README_es.md`](README_es.md) · **Français** → [`README_fr.md`](README_fr.md) · **Deutsch** → [`README_de.md`](README_de.md) · **日本語** → [`README_ja.md`](README_ja.md)
 
 ---
 
