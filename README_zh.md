@@ -3,7 +3,7 @@
 > 结构化需求提取与翻译工具 — 从 PDF 文档中提取层级化需求，按结构拆分并翻译，
 > 输出 Excel 报表。
 
-语言：**中文**（本文件） · **English** → [`README.md`](README.md)
+语言：**中文**（本文件） · **English** → [`README.md`](README.md) · **Português (Brasil)** → [`README_pt.md`](README_pt.md) · **Español** → [`README_es.md`](README_es.md) · **Français** → [`README_fr.md`](README_fr.md) · **Deutsch** → [`README_de.md`](README_de.md) · **日本語** → [`README_ja.md`](README_ja.md)
 
 ---
 
@@ -312,6 +312,11 @@ DIaT/
 ├── requirements-optional.txt   # pysbd + ocrmypdf（更优断句、扫描件 OCR）
 ├── README.md                   # 面向用户的说明（English）
 ├── README_zh.md                # 面向用户的说明（中文，本文件）
+├── README_pt.md                # 面向用户的说明（Português）
+├── README_es.md                # 面向用户的说明（Español）
+├── README_fr.md                # 面向用户的说明（Français）
+├── README_de.md                # 面向用户的说明（Deutsch）
+├── README_ja.md                # 面向用户的说明（日本語）
 ├── AGENT_GUIDE.md              # 面向 orchestrator / sub-agent 的使用原则
 └── LICENSE                     # 项目许可证
 ```

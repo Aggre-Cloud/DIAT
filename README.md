@@ -4,7 +4,7 @@
 > requirements out of PDF documents, decompose by structure, translate, and
 > export an Excel report.
 
-Language: **English** (this file) · **中文** → [`README_zh.md`](README_zh.md)
+Language: **English** (this file) · **中文** → [`README_zh.md`](README_zh.md) · **Português (Brasil)** → [`README_pt.md`](README_pt.md) · **Español** → [`README_es.md`](README_es.md) · **Français** → [`README_fr.md`](README_fr.md) · **Deutsch** → [`README_de.md`](README_de.md) · **日本語** → [`README_ja.md`](README_ja.md)
 
 ---
 
@@ -344,7 +344,12 @@ DIaT/
 ├── requirements.txt            # pinned runtime dependencies
 ├── requirements-optional.txt   # pysbd + ocrmypdf (better segmentation, scanned-PDF OCR)
 ├── README.md                   # this file — user-facing docs (English)
-├── README_zh.md                # user-facing docs (Chinese), full mirror
+├── README_zh.md                # user-facing docs (Chinese)
+├── README_pt.md                # user-facing docs (Português)
+├── README_es.md                # user-facing docs (Español)
+├── README_fr.md                # user-facing docs (Français)
+├── README_de.md                # user-facing docs (Deutsch)
+├── README_ja.md                # user-facing docs (日本語)
 ├── AGENT_GUIDE.md              # orchestrator / sub-agent usage principles
 └── LICENSE                     # project license
 ```
