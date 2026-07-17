@@ -337,7 +337,7 @@ class PDFExtractor:
         # Lazy import so the dependency stays optional
         import importlib.util as _ilu
         _cfg_path = os.path.join(os.path.dirname(os.path.dirname(
-            os.path.abspath(__file__))), '007_config', 'config.py')
+            os.path.abspath(__file__))), '006_config', 'config.py')
         _spec = _ilu.spec_from_file_location('config_cfg', _cfg_path)
         _cfg = _ilu.module_from_spec(_spec)
         _spec.loader.exec_module(_cfg)

@@ -18,7 +18,7 @@ os.makedirs(OUTPUT_DIR, exist_ok=True)
 os.makedirs(JSON_OUTPUT_DIR, exist_ok=True)
 
 # OCR fallback language (used by 003_pdf_extractor._ocr_fallback).
-# Override in 007_config/config.py if the source document uses a
+# Override in 006_config/config.py if the source document uses a
 # non-Latin script (e.g. 'deu', 'fra', 'por', or a combo 'eng+por').
 OCR_LANGUAGE = 'eng'
 

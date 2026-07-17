@@ -13,7 +13,7 @@ Dependency contract
 -------------------
 All third-party imports the pipeline needs are listed in `REQUIRED_PACKAGES`
 (below).  If any import fails, the agent should call
-``python -m 006_main.main --install-deps`` (or invoke
+``python -m 005_main.main --install-deps`` (or invoke
 ``ensure_dependencies()``) to install them and then re-run.  Manual users
 install the standard way::
 
@@ -125,7 +125,7 @@ def ensure_dependencies(auto_install=True, interactive=False, install_optional=F
             "\n  · 人工运行 / manual:\n"
             f"        pip install -r {req_file}\n"
             "  · 自动安装 / agent (non-interactive):\n"
-            f"        python -m 006_main.main --install-deps\n"
+            f"        python -m 005_main.main --install-deps\n"
             "  · 针对缺包精准安装 / pin-point:\n"
             f"        pip install {' '.join(specs_to_install)}\n"
         )
@@ -172,7 +172,7 @@ def ensure_dependencies(auto_install=True, interactive=False, install_optional=F
     return True
 
 def load_config():
-    config_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), '007_config', 'config.py')
+    config_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), '006_config', 'config.py')
     spec = importlib.util.spec_from_file_location('config', config_path)
     config = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(config)
@@ -186,8 +186,8 @@ def load_modules():
         'pdf_extractor': '003_pdf_extractor/pdf_extractor.py',
         'text_splitter': '001_text_splitter/text_splitter.py',
         'translator': '002_translator/translator.py',
-        'excel_generator': '005_excel_generator/excel_generator.py',
-        'validator': '008_validator/validator.py',
+        'excel_generator': '004_excel_generator/excel_generator.py',
+        'validator': '007_validator/validator.py',
     }
 
     for name, rel_path in paths.items():
@@ -571,7 +571,7 @@ class RequirementItemizationSkill:
         import importlib.util as _ilu
         _cfg_path = os.path.join(
             os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
-            '007_config', 'config.py')
+            '006_config', 'config.py')
         _spec = _ilu.spec_from_file_location('config_cfg', _cfg_path)
         _cfg = _ilu.module_from_spec(_spec)
         _spec.loader.exec_module(_cfg)

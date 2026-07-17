@@ -61,14 +61,6 @@ structured, translated Excel workbook in a single command:
 - AI agents (Claude, etc.) that orchestrate document-processing pipelines and
   need a deterministic, self-validating tool.
 
-### Non-goals
-
-DIaT does **not** replace a human translator, does not produce legally-certified
-output, does not read text embedded in images or flowcharts, and does not
-perform semantic analysis of contractual obligation ("shall / must").  It is a
-**structure-preserving extraction + machine-translation aid** — the human
-remains in the loop for review.
-
 ---
 
 ## 2. How to Use — Recommended Ways
@@ -84,7 +76,7 @@ is automatic:
 cd "<project-root>"
 
 # Run — that's it.  The script asks you 3 questions, then produces the Excel.
-PYTHONIOENCODING=utf-8 python 006_main/main.py "your-file.pdf"
+PYTHONIOENCODING=utf-8 python 005_main/main.py "your-file.pdf"
 ```
 
 You will be prompted, in order:
@@ -108,19 +100,19 @@ flags explicitly:
 
 ```bash
 # English + Japanese, Google, non-interactive
-PYTHONIOENCODING=utf-8 python 006_main/main.py "your-file.pdf" \
+PYTHONIOENCODING=utf-8 python 005_main/main.py "your-file.pdf" \
     -l ja -e google --no-input
 
 # English + Chinese, Agent mode, non-interactive
-PYTHONIOENCODING=utf-8 python 006_main/main.py "your-file.pdf" \
+PYTHONIOENCODING=utf-8 python 005_main/main.py "your-file.pdf" \
     -l zh-cn -e agent --no-input
 
 # Extract + split + export Excel only, no translation
-PYTHONIOENCODING=utf-8 python 006_main/main.py "your-file.pdf" \
+PYTHONIOENCODING=utf-8 python 005_main/main.py "your-file.pdf" \
     --no-translate --json --no-input
 
 # Batch a whole directory (non-interactive)
-PYTHONIOENCODING=utf-8 python 006_main/main.py ./pdfs --no-input
+PYTHONIOENCODING=utf-8 python 005_main/main.py ./pdfs --no-input
 ```
 
 > **Note:** English (`en`) is always added automatically — `-l` only takes the
@@ -134,13 +126,13 @@ install them from the project's own `requirements.txt` without human input:
 ```bash
 # 1. (Optional) self-install missing deps — non-interactive in a non-TTY.
 #    Skip if you already ran `pip install -r requirements.txt`.
-python -m 006_main.main --install-deps
+python -m 005_main.main --install-deps
 
 # 2. Also pull optional extras (better segmentation + scanned-PDF OCR)
-python -m 006_main.main --install-deps --with-optional
+python -m 005_main.main --install-deps --with-optional
 
 # 3. Run the actual pipeline
-python -m 006_main.main "your-file.pdf" -l ja -e google --no-input
+python -m 005_main.main "your-file.pdf" -l ja -e google --no-input
 ```
 
 ### ▶ Human manual install (one command)
@@ -152,7 +144,58 @@ pip install -r requirements-optional.txt   # optional: pysbd + ocrmypdf
 
 ---
 
-## 3. Agent Execution Protocol — What the Agent Should Recommend
+## 3. Install the Skill & Invoke the Agent
+
+### Installing the skill into your agent
+
+DIaT is a plain Python project — "installing the skill" means making the
+project folder available to the agent so it can run `005_main/main.py`.
+
+1. **Clone** the repository to a permanent location on the agent's host
+   (or your own machine):
+   ```bash
+   git clone https://github.com/Aggre-Cloud/DIAT.git
+   cd DIaT
+   ```
+2. **Install dependencies once** (the agent can also self-install via
+   `--install-deps`, but a manual install is faster):
+   ```bash
+   pip install -r requirements.txt
+   ```
+3. **Point the agent at the project root.**  No registration or config
+   file is needed — when you want a PDF processed, tell the agent the
+   absolute path to the project root and the input file:
+
+   ```
+   Process this PDF with DIaT:
+     project → D:/Tool Development/Skills Development/DIaT
+     input   → D:/.../my-spec.pdf
+   ```
+
+That is the entire "installation" — a clone plus one `pip install`.
+
+### Commanding the agent to start work
+
+Once the project is on the agent's disk and the dependencies are installed,
+invoke it with a short instruction.  The agent already knows the skill from
+`AGENT_GUIDE.md`; your message only needs to name the document and any
+non-default choices.  Examples:
+
+| Your message to the agent | What the agent does |
+|---|---|
+| `用 DIaT 处理 02.pdf` | Runs interactively — asks for language / engine / proper nouns, then produces Excel |
+| `用 DIaT 处理 02.pdf，目标语言 ja，Google，不要问` | Non-interactive: `-l ja -e google --no-input` |
+| `把 spec.pdf 条目化成 Excel，不翻译` | Extract + split + Excel only: `--no-translate --json --no-input` |
+| `批量处理 ./pdfs 全部，zh-cn，agent 翻译` | Batch the directory in Agent mode (`-e agent`) |
+
+**Recommended:** be concise and let the agent run the three prompts
+(language / engine / proper nouns) — that interactive flow is the safest
+path and teaches you what the tool can do.  Only specify flags (`-l`,
+`-e`, `--no-input`) when you deliberately want to skip the prompts.
+
+---
+
+## 4. Agent Execution Protocol — What the Agent Should Recommend
 
 When an AI agent orchestrates DIaT on behalf of a user, **the recommended
 behavior is**:
@@ -163,7 +206,7 @@ behavior is**:
 2. **Ask the user the three questions (a) / (b) / (c) above** before
    executing, even if CLI flags could supply defaults.  This is the
    project's mandatory pre-run checklist (see `AGENT_GUIDE.md §2`).
-3. **Recommend the interactive path** (`python 006_main/main.py "file.pdf"`)
+3. **Recommend the interactive path** (`python 005_main/main.py "file.pdf"`)
    as the primary way to use the skill — it is the least error-prone and
    teaches the user what the tool can do.
 4. **Verify dependencies** before the first run: invoke `--install-deps` if a
@@ -174,7 +217,7 @@ user in front of the three prompts, not to silently decide on their behalf.
 
 ---
 
-## 4. Installed Dependencies
+## 5. Installed Dependencies
 
 | Package | Required? | Purpose |
 |---------|-----------|---------|
@@ -188,7 +231,7 @@ user in front of the three prompts, not to silently decide on their behalf.
 
 ---
 
-## 5. Capability Boundaries
+## 6. Capability Boundaries
 
 ### ✅ Supported
 
@@ -209,17 +252,6 @@ user in front of the three prompts, not to silently decide on their behalf.
 | Default interaction | Interactive by default — prompts for target language / translation engine / proper-noun additions; only skips when the user explicitly asks or passes `--no-input` |
 | Table-row filtering | When matching a `D1/D2/D3` heading, rejects rows containing `;` (cell separator), `(` (unit annotation), a trailing " - short word" (label/value pair), or digits — avoids misreading PDF table rows as section headings |
 
-### ❌ NOT supported (out of scope)
-
-- ❌ Recognizing text embedded in images, flowcharts, or scanned drawings (body text only)
-- ❌ Handwritten documents / very low quality scans / heavily skewed OCR
-- ❌ Cross-document diffing, aggregation, or delta extraction
-- ❌ Auto-filling scorecards, compliance matrices, or bid responses
-- ❌ Non-text PDFs (pure image albums, rasterized CAD PDFs)
-- ❌ Real-time collaboration / concurrent multi-user editing
-- ❌ Structured semantic understanding (does not classify deontic modality like "shall / must")
-- ❌ Legally-certified translation (machine output is reference-only, no legal warranty)
-
 ### ⚠️ Prerequisites
 
 - PDF must be **text-selectable** digital, or scanned at ≥ 200 dpi
@@ -229,7 +261,7 @@ user in front of the three prompts, not to silently decide on their behalf.
 
 ---
 
-## 6. Architecture / Pipeline
+## 7. Architecture / Pipeline
 
 ```
 PDF file
@@ -249,7 +281,7 @@ raw_text  +  ExtractionMeta
    ▼
 ParseResult  { roots, items, meta, raw_rows }
    │
-   ├──▶ [008_validator]  assert_body_intact(raw_text, items)
+   ├──▶ [007_validator]  assert_body_intact(raw_text, items)
    │       word-multiset coverage ratio  →  BodyLossError if < 80%
    │
    ▼
@@ -268,11 +300,11 @@ ParseResult  { roots, items, meta, raw_rows }
 
 ---
 
-## 7. Project Structure
+## 8. Project Structure
 
 ```
 DIaT/
-├── 007_config/
+├── 006_config/
 │   └── config.py               # global config + language-abbreviation table + VALIDATION thresholds
 ├── 003_pdf_extractor/
 │   └── pdf_extractor.py        # 4-strategy merge extraction + repeating-block stripper + OCR fallback
@@ -280,11 +312,11 @@ DIaT/
 │   └── text_splitter.py        # ChapterSectionParser + SentenceSegmenter
 ├── 005_excel_generator/
 │   └── excel_generator.py      # Excel output (localized headers; English + one user language)
-├── 008_validator/
+├── 007_validator/
 │   └── validator.py            # assert_body_intact — body-survival check
 ├── 002_translator/
 │   └── translator.py           # TranslationService (Google + Agent)
-├── 006_main/
+├── 005_main/
 │   └── main.py                 # CLI entry point + pipeline orchestration
 ├── sample doc/                 # example PDFs (multi-language) for testing
 ├── README.md                   # this file — user-facing docs (English)
@@ -294,7 +326,7 @@ DIaT/
 
 ---
 
-## 8. CLI Arguments
+## 9. CLI Arguments
 
 | Argument | Description |
 |----------|-------------|
@@ -317,10 +349,10 @@ DIaT/
 
 ---
 
-## 9. Interactive Flow — Example Session
+## 10. Interactive Flow — Example Session
 
 ```
-$ PYTHONIOENCODING=utf-8 python 006_main/main.py example.pdf
+$ PYTHONIOENCODING=utf-8 python 005_main/main.py example.pdf
 
   =======================================================
     Target Translation Language Selection
@@ -385,9 +417,9 @@ $ PYTHONIOENCODING=utf-8 python 006_main/main.py example.pdf
 
 ---
 
-## 10. Body-Preservation Guarantee
+## 11. Body-Preservation Guarantee
 
-Silent body loss is **intolerable** — `008_validator` runs unconditionally before the Excel is generated:
+Silent body loss is **intolerable** — `007_validator` runs unconditionally before the Excel is generated:
 
 1. Walk `raw_text` line by line, skipping header/footer/toc rows → produce `body_lines`.
 2. Normalize each `item['content']` into a word multiset.
@@ -397,7 +429,7 @@ Silent body loss is **intolerable** — `008_validator` runs unconditionally bef
 
 Lexical normalization folds all whitespace to a single space before splitting into tokens, so pdfplumber-driven line-break indentation differences are not miscounted as body loss.
 
-The thresholds live in `007_config/config.py::VALIDATION`:
+The thresholds live in `006_config/config.py::VALIDATION`:
 
 ```python
 VALIDATION = {
@@ -411,13 +443,13 @@ VALIDATION = {
 
 ---
 
-## 11. Proper-Noun Protection
+## 12. Proper-Noun Protection
 
 Before translation, the following term classes are replaced by placeholders
 `__PROPER_<uuid>__` so that Google Translate leaves them untouched, and are
 restored afterwards:
 
-`007_config/config.py::DO_NOT_TRANSLATE` is a **categorized dictionary**
+`006_config/config.py::DO_NOT_TRANSLATE` is a **categorized dictionary**
 (`category → {label, items}`); the built-in seed contains only **cross-industry
 generic terms** (~30), organized by category:
 
@@ -462,7 +494,7 @@ is matched before `AMI`.
 
 ---
 
-## 12. Agent Translation Mode
+## 13. Agent Translation Mode
 
 In Agent mode the script **does not call Google Translate**; instead it:
 
@@ -483,7 +515,7 @@ the agent must substitute the same placeholders before translation (the same
 
 ---
 
-## 13. Output Format
+## 14. Output Format
 
 Excel worksheet column definition (sheet title and headers localized to the
 non-English target language):
@@ -507,7 +539,7 @@ non-English target language):
 
 ---
 
-## 14. Roadmap
+## 15. Roadmap
 
 - [ ] Allow specifying the source language on the CLI (skip auto-detection)
 - [ ] Add docx / odt output formats
@@ -517,7 +549,7 @@ non-English target language):
 
 ---
 
-## 15. License & Attribution
+## 16. License & Attribution
 
 © **Aggre-Cloud 聚云科技** — <https://www.acdatech.com>
 

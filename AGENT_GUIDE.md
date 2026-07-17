@@ -36,7 +36,7 @@ need to ask the user about this; the pipeline handles it internally.
 
 **Default = interactive. Always.**
 
-- `006_main/main.py` only enters non-interactive mode when the `--no-input`
+- `005_main/main.py` only enters non-interactive mode when the `--no-input`
   CLI flag is **explicitly passed**.
 - **As the orchestrating agent, you MUST NOT pass `--no-input` on behalf
   of the user.**  Only pass it when the user explicitly tells you they want
@@ -52,20 +52,20 @@ need to ask the user about this; the pipeline handles it internally.
 ### 2c. Dependency Bootstrap (Auto-Install)
 
 The pipeline depends on the packages listed in
-`006_main/main.py::REQUIRED_PACKAGES` (mirrored in the project
+`005_main/main.py::REQUIRED_PACKAGES` (mirrored in the project
 `requirements.txt`).  **Before any run, ensure they are importable.**
 
 **Agent path (automatic, no human in the loop):**
 
 ```bash
 # 1. Self-install missing packages from requirements.txt, then exit.
-PYTHONIOENCODING=utf-8 python -m 006_main.main --install-deps
+PYTHONIOENCODING=utf-8 python -m 005_main.main --install-deps
 
 # 2. (Optional) also install optional extras (pysbd, ocrmypdf).
-PYTHONIOENCODING=utf-8 python -m 006_main.main --install-deps --with-optional
+PYTHONIOENCODING=utf-8 python -m 005_main.main --install-deps --with-optional
 
 # 3. Run the actual pipeline.
-PYTHONIOENCODING=utf-8 python -m 006_main.main "<file.pdf>" --no-input
+PYTHONIOENCODING=utf-8 python -m 005_main.main "<file.pdf>" --no-input
 ```
 
 `--install-deps` detects a non-TTY (agent / pipe) and installs without
@@ -81,7 +81,7 @@ pip install -r requirements.txt
 pip install -r requirements-optional.txt
 
 # Run (interactive by default).
-PYTHONIOENCODING=utf-8 python 006_main/main.py "<file.pdf>"
+PYTHONIOENCODING=utf-8 python 005_main/main.py "<file.pdf>"
 ```
 
 If a human runs the script without installing first and a package is
@@ -109,11 +109,11 @@ The following are **explicitly prohibited** during any run:
 1. **NEVER modify source files** during an active run.
 
    This includes but is not limited to:
-   `007_config/config.py`, `002_translator/translator.py`,
-   `006_main/main.py`, `001_text_splitter/text_splitter.py`,
+   `006_config/config.py`, `002_translator/translator.py`,
+   `005_main/main.py`, `001_text_splitter/text_splitter.py`,
    `003_pdf_extractor/pdf_extractor.py`,
    `005_excel_generator/excel_generator.py`,
-   `008_validator/validator.py`.
+   `007_validator/validator.py`.
 
 2. **NEVER bypass interactive prompts.**
 
@@ -173,10 +173,10 @@ downward through `main.py`.
 |--------|----------------|-----------|
 | `003_pdf_extractor/pdf_extractor.py` | PDF → `raw_text` + `ExtractionMeta` (4-strategy merge + header/footer strip + OCR fallback) | `main.py` |
 | `001_text_splitter/text_splitter.py` | `raw_text` → hierarchical `items` (章→节→条→款→项) + per-language sentence segmentation | `main.py` |
-| `008_validator/validator.py` | Word-multiset body-coverage check → `BodyReport` / `BodyLossError` | `main.py` |
+| `007_validator/validator.py` | Word-multiset body-coverage check → `BodyReport` / `BodyLossError` | `main.py` |
 | `002_translator/translator.py` | Translation + proper-noun placeholder protection + language detection | `main.py` |
 | `005_excel_generator/excel_generator.py` | `items` → Excel workbook (fixed 4 columns + N language columns) | `main.py` |
-| `006_main/main.py` | CLI + orchestration + interactive prompts + JSON queue emit | **user / agent** |
+| `005_main/main.py` | CLI + orchestration + interactive prompts + JSON queue emit | **user / agent** |
 
 **Key invariants (must never be violated):**
 
@@ -206,7 +206,7 @@ The exact prompt sequence when `--no-input` is **not** set:
 Terminal example:
 
 ```
-$ PYTHONIOENCODING=utf-8 python 006_main/main.py example.pdf
+$ PYTHONIOENCODING=utf-8 python 005_main/main.py example.pdf
 
   === 目标翻译语言选择 / Target Language Selection ===
   Detected source: pt (Português)
@@ -262,7 +262,7 @@ $ PYTHONIOENCODING=utf-8 python 006_main/main.py example.pdf
 > **正文被丢弃现象，这点是绝对不可容忍的。**
 > (Silently dropping body text is absolutely intolerable.)
 
-`008_validator.assert_body_intact()` runs **before** Excel generation:
+`007_validator.assert_body_intact()` runs **before** Excel generation:
 
 1. Walk `raw_text` lines; skip recognised header/footer/TOC lines.
 2. Normalise each surviving line to a word-multiset.
@@ -271,7 +271,7 @@ $ PYTHONIOENCODING=utf-8 python 006_main/main.py example.pdf
 4. If `coverage < 0.80` → raise `BodyLossError` → **abort**.
 5. Uncovered lines → written to `{prefix}_orphans.json` for debugging.
 
-Thresholds are configurable in `007_config/config.py::VALIDATION` but
+Thresholds are configurable in `006_config/config.py::VALIDATION` but
 should not be loosened without explicit user request.
 
 ---
@@ -281,7 +281,7 @@ should not be loosened without explicit user request.
 The translator shields two layers of text from Google Translate:
 
 1. **Built-in categorized seeds** (`DO_NOT_TRANSLATE` in
-   `007_config/config.py`) — a **category dictionary**, not a flat list.
+   `006_config/config.py`) — a **category dictionary**, not a flat list.
    Each entry is `{category_key: {label: {en, zh}, items: […]}}`.  Built-in
    seeds carry only **cross-industry generic** terms (technical
    abbreviations like `API/HTTP/JSON`, standards bodies like
@@ -390,18 +390,18 @@ cd "<path-to>/DIaT"
 
 # Step 1 — ensure dependencies (auto-installs from requirements.txt,
 #          no prompt because stdin is not a TTY).
-PYTHONIOENCODING=utf-8 python -m 006_main.main --install-deps
+PYTHONIOENCODING=utf-8 python -m 005_main.main --install-deps
 
 # Step 2 — (optional) install extras for better segmentation / OCR.
-PYTHONIOENCODING=utf-8 python -m 006_main.main --install-deps --with-optional
+PYTHONIOENCODING=utf-8 python -m 005_main.main --install-deps --with-optional
 
 # Step 3 — run the pipeline non-interactively.
 #   Google Translate engine:
-PYTHONIOENCODING=utf-8 python -m 006_main.main \
+PYTHONIOENCODING=utf-8 python -m 005_main.main \
     "<file.pdf>" -e google --no-input -l en,zh-cn
 
 #   Agent translation engine (writes JSON queue, agent translates, writes back):
-PYTHONIOENCODING=utf-8 python -m 006_main.main \
+PYTHONIOENCODING=utf-8 python -m 005_main.main \
     "<file.pdf>" -e agent --no-input -l en,zh-cn
 
 # Step 4 — (Agent engine only) read the emitted *_agent_queue.json,
@@ -431,13 +431,13 @@ pip install -r requirements.txt
 pip install -r requirements-optional.txt
 
 # Step 2 — run interactively (prompts for language / engine / proper nouns).
-PYTHONIOENCODING=utf-8 python 006_main/main.py "<file.pdf>"
+PYTHONIOENCODING=utf-8 python 005_main/main.py "<file.pdf>"
 
 # Step 2-alt — non-interactive (skips prompts, uses en + zh-cn + Google).
-PYTHONIOENCODING=utf-8 python 006_main/main.py "<file.pdf>" --no-input
+PYTHONIOENCODING=utf-8 python 005_main/main.py "<file.pdf>" --no-input
 
 # Step 2-alt — Google engine, explicit languages, non-interactive.
-PYTHONIOENCODING=utf-8 python 006_main/main.py \
+PYTHONIOENCODING=utf-8 python 005_main/main.py \
     "<file.pdf>" -e google --no-input -l en,zh-cn
 ```
 
@@ -460,14 +460,14 @@ PYTHONIOENCODING=utf-8 python 006_main/main.py \
 │      pip install -r requirements.txt                             │
 │                                                                  │
 │  Human (interactive):                                            │
-│      python 006_main/main.py <file.pdf>                          │
+│      python 005_main/main.py <file.pdf>                          │
 │                                                                  │
 │  Human (non-interactive):                                        │
-│      python 006_main/main.py <file.pdf> --no-input               │
+│      python 005_main/main.py <file.pdf> --no-input               │
 │                                                                  │
 │  Agent (auto-install + run):                                     │
-│      python -m 006_main.main --install-deps                      │
-│      python -m 006_main.main <file.pdf> --no-input -e google     │
+│      python -m 005_main.main --install-deps                      │
+│      python -m 005_main.main <file.pdf> --no-input -e google     │
 │                                                                  │
 │  Optional extras (better segmentation + OCR):                    │
 │      pip install -r requirements-optional.txt                    │

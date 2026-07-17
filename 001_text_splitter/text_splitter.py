@@ -12,7 +12,7 @@ New components
    pt / en / es / fr / de  → pysbd (optional) + regex fallback
    zh / ja / ko              → CJK terminator rule
    others                     → generic regex
-   ALL abbreviation tables hardcoded in 007_config/config.py::ABBR.
+   ALL abbreviation tables hardcoded in 006_config/config.py::ABBR.
 
 Top-level API:
   parse_text(raw_text) -> ParseResult(roots, items, meta)
@@ -39,7 +39,7 @@ def _cfg():
     spec = importlib.util.spec_from_file_location(
         "config",
         os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
-                     "007_config", "config.py"))
+                     "006_config", "config.py"))
     m = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(m)
     return m

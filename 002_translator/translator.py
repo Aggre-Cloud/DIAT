@@ -20,7 +20,7 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 # Lazy load config
 def get_translation_config():
     import importlib.util
-    spec = importlib.util.spec_from_file_location("config", "007_config/config.py")
+    spec = importlib.util.spec_from_file_location("config", "006_config/config.py")
     config = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(config)
     return config.TRANSLATION_CONFIG
@@ -34,7 +34,7 @@ def get_do_not_translate():
     ``get_do_not_translate_categories()`` via importlib instead.
     """
     import importlib.util
-    spec = importlib.util.spec_from_file_location("config", "007_config/config.py")
+    spec = importlib.util.spec_from_file_location("config", "006_config/config.py")
     config = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(config)
     return config.get_do_not_translate_flat()
