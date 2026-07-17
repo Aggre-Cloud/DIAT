@@ -17,9 +17,13 @@ International engineering, energy, and infrastructure projects routinely produce
 specifications, contracts, regulations, and standards.  These documents share
 a common shape:
 
-- **Hierarchically numbered**: chapters → sections → articles → clauses → items
-  (章 → 节 → 条 → 款 → 项), often mixing numbering schemes like `Art. 1º`,
-  `CAPÍTULO`, `1.2.1`, `（1）`, `(a)`, roman numerals.
+- **Hierarchically numbered**: a 5-depth structure the parser models internally
+  as chapter → section → article → clause → item (章 → 节 → 条 → 款 → 项),
+  often mixing numbering schemes like `Art. 1º`, `CAPÍTULO`, `1.2.1`, `（1）`,
+  `(a)`, roman numerals, circled numbers.  Every requirement carries its full
+  `hierarchy_path` internally, but the exported Excel exposes only the top two
+  levels (章 / 节) as dedicated structural columns — deeper levels stay folded
+  into the requirement body so the row stays readable.
 - **Multi-language**: a Portuguese specification for a Chinese-backed project,
   an Arabic tender reviewed by a German contractor, a Russian O&M plan read by a
   Brazilian team.
@@ -30,6 +34,23 @@ For a project engineer, procurement officer, or technical reviewer, the real
 work is: *"extract every requirement, know which chapter it belongs to, and make
 it readable in my language."*  Doing this by hand is slow, error-prone, and
 does not scale across a folder of documents.
+
+### Why DIaT
+
+Document-by-document translation is slow and fragile.  DIaT replaces the
+manual copy-paste → translate → reassemble loop with one deterministic,
+self-validating pipeline:
+
+| Capability | Manual / Google-translate-only | DIaT |
+|------------|-------------------------------|------|
+| Document layout | Copy-paste per page; multi-column and table text routinely scrambled | 4-strategy merge extraction (layout → words → tables → chars) with automatic header/footer stripping |
+| Requirement splitting | Eyeball the numbering — easy to drop items or flatten the nesting | 12 numbering schemes auto-detected (Art. / CAPÍTULO / § / 1.2.1 / （1）/ (a) / roman / circled …) and a stack-based tree that keeps the **full** chapter path of every item |
+| Sentence segmentation | Translate the whole paragraph — long sentences degrade, breaks get lost | Per-source-language best practice (pysbd for Latin scripts, CJK terminator rules for zh/ja/ko, regex fallback for everything else) |
+| Proper nouns | Corrupted by the translation engine (`MDC` → lower-case, `AMI` mangled) | Placeholder protection with ~30 built-in generic terms plus category-guided interactive addition, restored verbatim after translation |
+| Translation engine | Commit to one | Google Translate **and** Agent (Claude) dual engines — switchable in the same pipeline with identical output layout |
+| Body safety | Translation loss is only spotted after the fact, if at all | Mandatory word-multiset coverage check; **< 80% hard-halts the pipeline and emits no Excel** — partial output is intolerable |
+| Output language | Single language, mixed-language headers | Sheet title, static headers, and column headers fully localized to the target language — zero mixing |
+| Batch | Per-file repetition | Whole-directory batch, CI flags (`--no-input`), and Agent autonomous run |
 
 ### What DIaT does
 
@@ -288,7 +309,7 @@ ParseResult  { roots, items, meta, raw_rows }
 [002_translator]  (optional)  Google / Agent translation
    │
    ▼
-[005_excel_generator]  Excel workbook
+[004_excel_generator]  Excel workbook
         ID | 章 | 节 | 需求原文 | English | <your language>
 ```
 
@@ -304,24 +325,28 @@ ParseResult  { roots, items, meta, raw_rows }
 
 ```
 DIaT/
-├── 006_config/
-│   └── config.py               # global config + language-abbreviation table + VALIDATION thresholds
+├── 001_text_splitter/
+│   └── text_splitter.py        # ChapterSectionParser (12 numbering schemes, stack-based 5-depth tree) + SentenceSegmenter
+├── 002_translator/
+│   └── translator.py           # TranslationService (Google + Agent) + localized header/title helpers
 ├── 003_pdf_extractor/
 │   └── pdf_extractor.py        # 4-strategy merge extraction + repeating-block stripper + OCR fallback
-├── 001_text_splitter/
-│   └── text_splitter.py        # ChapterSectionParser + SentenceSegmenter
-├── 005_excel_generator/
-│   └── excel_generator.py      # Excel output (localized headers; English + one user language)
+├── 004_excel_generator/
+│   └── excel_generator.py      # single-sheet Excel output (localized headers; English + one user language)
+├── 005_main/
+│   └── main.py                 # CLI entry point + pipeline orchestration + agent queue writer
+├── 006_config/
+│   └── config.py               # global config + ABBR tables + DO_NOT_TRANSLATE categories + VALIDATION thresholds
 ├── 007_validator/
 │   └── validator.py            # assert_body_intact — body-survival check
-├── 002_translator/
-│   └── translator.py           # TranslationService (Google + Agent)
-├── 005_main/
-│   └── main.py                 # CLI entry point + pipeline orchestration
 ├── sample doc/                 # example PDFs (multi-language) for testing
+├── output/                     # generated Excel + JSON intermediates (git-ignored)
+├── requirements.txt            # pinned runtime dependencies
+├── requirements-optional.txt   # pysbd + ocrmypdf (better segmentation, scanned-PDF OCR)
 ├── README.md                   # this file — user-facing docs (English)
-├── README_zh.md                # user-facing docs (Chinese)
-└── AGENT_GUIDE.md              # orchestrator / sub-agent usage principles
+├── README_zh.md                # user-facing docs (Chinese), full mirror
+├── AGENT_GUIDE.md              # orchestrator / sub-agent usage principles
+└── LICENSE                     # project license
 ```
 
 ---
@@ -494,24 +519,88 @@ is matched before `AMI`.
 
 ---
 
-## 13. Agent Translation Mode
+## 13. Translation Engines — Google vs. Agent
 
-In Agent mode the script **does not call Google Translate**; instead it:
+DIaT offers two interchangeable translation engines selectable with
+`-e google` (default) or `-e agent`.  Both feed the same Excel layout, both
+respect the same proper-noun protection, and both are validated by the same
+body-survival check.  They differ in *who* translates and *how*.
 
-1. Writes `*_agent_queue.json` (containing `source_language`, `target_languages`,
-   `requirements`, `extra_do_not_translate`)
-2. The Agent (Claude) reads the JSON and translates each requirement
-3. The Agent calls `write_translations_to_excel()` to write the results back
+### How they work
 
-**When to use it**:
+| | Google Translate (`-e google`) | Agent / Claude (`-e agent`) |
+|---|---|---|
+| **Executor** | Google Translate API, called chunk-by-chunk from `TranslationService._translate_with_google` | The AI agent (Claude) reads a JSON queue and writes translations back |
+| **Handshake** | Direct, in-process | `main.py` writes `*_agent_queue.json` (source language, target languages, requirements, `extra_do_not_translate`) → agent translates → agent calls `write_translations_to_excel()` |
+| **Context window** | One chunk at a time (≤ 4 500 chars); no memory across requirements | The whole queue is available; the agent can enforce terminology consistency across requirements and carry context from earlier items |
+| **Network** | Needs access to the Google Translate endpoint (direct or overseas proxy) | Only needs the Claude API — Google endpoints are never touched |
+| **Speed (per 100 requirements)** | Seconds — fast, I/O-bound | Minutes — each item is a separate reasoning pass |
+| **Cost** | Free (rate-limited) | Consumes Claude API tokens |
 
-- Google Translate is not reachable (network restriction)
-- Higher translation quality is needed (Claude understands context)
-- Terminology consistency matters (Claude can reference the full document)
+### Pros and cons
 
-**Note**: in Agent mode the `extra_do_not_translate` list is likewise applied;
-the agent must substitute the same placeholders before translation (the same
-`_protect_proper_nouns` / `_restore_proper_nouns` pattern used by the Google path).
+#### Google Translate (`-e google`)
+
+**Pros**
+- **Fast** — high throughput; ideal for a quick first pass or a large batch of
+  documents where "good enough" is acceptable.
+- **No token cost** — the Translate API is free (within rate limits).
+- **Predictable quality** — for common language pairs (pt/en, en/es, en/zh)
+  general prose is fluent.
+
+**Cons**
+- **Chunked, context-free** — each ≤ 4 500-char chunk is translated in
+  isolation, so a requirement split across a chunk boundary loses
+  cross-sentence reference.
+- **Weaker on dense technical prose** — long specifications with nested
+  clauses, cross-references, and terse tabular statements can come back
+  garbled or under-translated (the coverage check may then refuse to emit).
+- **Proper-noun brittleness** — without the placeholder pass, acronyms like
+  `MDC`, `AMI`, `HPLC` are routinely lower-cased or transliterated; the
+  placeholder protection mitigates this but is not foolproof for unseen
+  acronyms.
+- **Needs outbound network** — unusable from a locked-down CI host that only
+  reaches the Claude API.
+
+#### Agent / Claude (`-e agent`)
+
+**Pros**
+- **Context-aware** — Claude sees the whole requirement and, where needed,
+  the surrounding queue, so it keeps terminology consistent (`MDC` stays
+  `MDC`, `last-gasp` is interpreted in the metering sense) and handles
+  nested clauses cleanly.
+- **Best for dense, short, technical prose** — exactly the shape of
+  requirements extracted from specifications; produces human-grade output.
+- **No Google dependency** — works where only the Claude API is reachable.
+- **Self-consistent** — the agent can reuse the same translation of a
+  repeated phrase across the whole document, which chunked Google Translate
+  may render differently each time.
+
+**Cons**
+- **Slower** — each requirement is one reasoning pass; a 400-item document
+  takes several minutes.  The script mitigates this by batching the queue
+  and parallelizing agent turns where possible.
+- **Token cost** — billed per 1 000 tokens; large documents are noticeably
+  more expensive than the free Google path.
+- **Variable on long, fluent prose** — for running narrative paragraphs
+  (rare in requirement lists), a fluent engine can occasionally "improve"
+  the wording instead of translating faithfully; the body-survival check
+  catches content loss but not stylistic drift.
+
+### How to choose
+
+| Situation | Recommended engine |
+|---|---|
+| Quick preview, large batch, fluent prose | `-e google` |
+| Dense technical specs, terminology consistency matters | `-e agent` |
+| Locked-down network (only Claude API reachable) | `-e agent` |
+| Second pass to clean up a Google draft | run Google first, then Agent on the queue |
+
+> **Note**: in Agent mode the `extra_do_not_translate` list is likewise applied;
+> the agent substitutes the same `__PROPER_<uuid>__` placeholders before
+> translation (the same `_protect_proper_nouns` / `_restore_proper_nouns`
+> contract the Google path uses), so protection behaviour is identical across
+> engines.
 
 ---
 

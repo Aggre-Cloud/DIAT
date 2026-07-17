@@ -14,8 +14,11 @@
 国际工程、能源、基础设施项目每天都会产生**多语言、结构化的 PDF 文档**
 —— 招投标文件、技术规格书、合同、法规、标准。 这些文档有一个共同特征：
 
-- **层级编号**：章 → 节 → 条 → 款 → 项，常混用 `Art. 1º`、`CAPÍTULO`、
-  `1.2.1`、`（1）`、`(a)`、罗马数字、带圈数字等多种编号样式。
+- **层级编号**：解析器在内部建模为 5 层深度结构——章 → 节 → 条 → 款 → 项，
+  常混用 `Art. 1º`、`CAPÍTULO`、`1.2.1`、`（1）`、`(a)`、罗马数字、带圈数字
+  等多种编号样式。每条需求在内部都保留完整的 `hierarchy_path`，但导出的
+  Excel **仅把前两层（章 / 节）作为独立的结构化列**，更深层级折叠进需求正文，
+  以保证每行可读。
 - **多语言**：葡萄牙语规格书服务于中资项目、阿拉伯语标书由德国承包商评审、
   俄语运维计划给巴西团队阅读。
 - **版式复杂**：多栏文本、内嵌表格、重复页眉页脚，严重时甚至是扫描件。
@@ -23,6 +26,22 @@
 对项目工程师、采购员、技术审核员来说，真正的工作是：*"把每条需求提取出来，
 标注它属于哪个章节，并翻译成我能读懂的语言。"* 手工做这件事慢、容易出错，
 更无法批量处理整个文件夹的文档。
+
+### 为什么选择 DIaT —— 整体优势
+
+一份一份地手工复制粘贴 → 翻译 → 拼装，慢且容易出错。DIaT 用一条确定性、
+可自检的流水线替代整个循环：
+
+| 能力 | 手工 / 单纯机翻 | DIaT |
+|------|----------------|------|
+| 文档版式 | 逐页复制粘贴，多栏、表格文本经常串位 | 4 策略融合提取（layout → words → tables → chars），自动剥离页眉页脚 |
+| 需求拆分 | 人眼识别编号，容易漏项、压平层级 | 12 种编号格式自动识别（Art. / CAPÍTULO / § / 1.2.1 / （1）/ (a) / 罗马 / 带圈…）+ 栈式构造，保留每条需求的**完整章节路径** |
+| 句子切分 | 整段翻译，长句质量差、断句丢失 | 按源语言最佳实践切分（拉丁语 pysbd；中/日/韩 CJK 句末规则；其它正则兜底） |
+| 专有名词 | 被翻译引擎破坏（`MDC`→小写、`AMI` 被改写）| 占位符保护 + ~30 条通用内置词 + 按类别交互补充，翻译后原样还原 |
+| 翻译引擎 | 只能选一个 | Google 翻译 **与** Agent（Claude）双引擎——同一流程随意切换，输出布局一致 |
+| 正文安全 | 翻译丢失只能事后对比才能发现 | 强制词多重集合覆盖率校验，**< 80% 直接终止、绝不输出残缺 Excel** |
+| 输出语言 | 单一语言、表头混用 | 工作表名 + 固定表头 + 列表头按目标语言本地化，零混用 |
+| 批量 | 逐文件重复操作 | 目录批量 + CI flag（`--no-input`）+ Agent 自主运行 |
 
 ### DIaT 做了什么
 
@@ -257,7 +276,7 @@ ParseResult  { roots, items, meta, raw_rows }
 [002_translator]  (可选)  Google / Agent 翻译
    │
    ▼
-[005_excel_generator]  Excel 工作簿
+[004_excel_generator]  Excel 工作簿
         ID | 章 | 节 | 需求原文 | English | <你选的语言>
 ```
 
@@ -273,24 +292,28 @@ ParseResult  { roots, items, meta, raw_rows }
 
 ```
 DIaT/
-├── 006_config/
-│   └── config.py               # 全局配置 + 语言缩写表 + VALIDATION 阈值
+├── 001_text_splitter/
+│   └── text_splitter.py        # ChapterSectionParser（12 种编号格式，栈式 5 层树）+ SentenceSegmenter
+├── 002_translator/
+│   └── translator.py           # TranslationService (Google + Agent) + 本地化表头/标题辅助函数
 ├── 003_pdf_extractor/
 │   └── pdf_extractor.py        # 4 策略融合提取 + 重复块剥离 + OCR 回退
-├── 001_text_splitter/
-│   └── text_splitter.py        # ChapterSectionParser + SentenceSegmenter
-├── 005_excel_generator/
-│   └── excel_generator.py      # Excel 输出（表头本地化；英文 + 一种用户语言）
+├── 004_excel_generator/
+│   └── excel_generator.py      # 单工作表 Excel 输出（表头本地化；英文 + 一种用户语言）
+├── 005_main/
+│   └── main.py                 # CLI 入口 + 流程编排 + agent 队列写入
+├── 006_config/
+│   └── config.py               # 全局配置 + ABBR 缩写表 + DO_NOT_TRANSLATE 分类 + VALIDATION 阈值
 ├── 007_validator/
 │   └── validator.py            # assert_body_intact — 正文存活校验
-├── 002_translator/
-│   └── translator.py           # TranslationService (Google + Agent)
-├── 005_main/
-│   └── main.py                 # CLI 入口 + 流程编排
 ├── sample doc/                 # 多语言示例 PDF（供测试）
+├── output/                     # 生成的 Excel + JSON 中间产物（已 gitignore）
+├── requirements.txt            # 固定版本运行依赖
+├── requirements-optional.txt   # pysbd + ocrmypdf（更优断句、扫描件 OCR）
 ├── README.md                   # 面向用户的说明（English）
 ├── README_zh.md                # 面向用户的说明（中文，本文件）
-└── AGENT_GUIDE.md              # 面向 orchestrator / sub-agent 的使用原则
+├── AGENT_GUIDE.md              # 面向 orchestrator / sub-agent 的使用原则
+└── LICENSE                     # 项目许可证
 ```
 
 ---
@@ -460,24 +483,71 @@ _restore_proper_nouns()        ← 把占位符还原为原词
 
 ---
 
-## 13. Agent 模式
+## 13. 翻译引擎 —— Google vs. Agent
 
-Agent 模式下，脚本**不调用 Google Translate**，而是：
+DIaT 提供两套可互换的翻译引擎，通过 `-e google`（默认）或 `-e agent`
+选择。两者输出相同的 Excel 布局、遵守相同的专有名词保护、经过相同的正文
+存活校验。区别在于**"谁来翻译"以及"怎么翻译"**。
 
-1. 写 `*_agent_queue.json`（含 `source_language`、`target_languages`、
-   `requirements`、`extra_do_not_translate`）
-2. Agent（Claude）读取 JSON，逐条翻译
-3. Agent 调用 `write_translations_to_excel()` 回写 Excel
+### 工作机制对比
 
-**适用场景**：
+| | Google 翻译（`-e google`） | Agent / Claude（`-e agent`） |
+|---|---|---|
+| **执行者** | Google Translate API，由 `TranslationService._translate_with_google` 逐块调用 | AI agent（Claude）读取 JSON 队列并写回译文 |
+| **握手方式** | 直接、进程内完成 | `main.py` 写 `*_agent_queue.json`（源语言、目标语言、需求列表、`extra_do_not_translate`）→ agent 翻译 → agent 调 `write_translations_to_excel()` 回写 |
+| **上下文窗口** | 每次只翻译一个块（≤ 4 500 字符），跨需求无记忆 | 整个队列可见，agent 可跨需求保持术语一致，并利用前文的上下文 |
+| **网络依赖** | 需要访问 Google Translate 端点（直连或境外代理） | 只需 Claude API，全程不触及 Google 端点 |
+| **速度（每 100 条需求）** | 秒级——快，受 I/O 限制 | 分钟级——每条需求一次推理过程 |
+| **费用** | 免费（有速率限制） | 消耗 Claude API token |
 
-- Google Translate 不可用（网络限制）
-- 需要更高质量的翻译（Claude 理解上下文）
-- 需要保持术语一致性（Claude 可参考全文）
+### 优势与劣势
 
-**注意**：Agent 模式下，`extra_do_not_translate` 列表同样生效，
-agent 在翻译前必须用占位符替换这些词（与 Google 路径相同的
-`_protect_proper_nouns` / `_restore_proper_nouns` 模式）。
+#### Google 翻译（`-e google`）
+
+**优势**
+- **快**——吞吐高，适合快速预览或"足够即可"的大批量文档。
+- **无 token 费用**——Translate API 在速率限制内免费。
+- **通用语言对质量稳定**——常见语对（pt/en、en/es、en/zh）的一般行文流畅。
+
+**劣势**
+- **分块、无上下文**——每个 ≤ 4 500 字符的块独立翻译，跨块边界的长需求会丢失句间关联。
+- **弱于密集技术文本**——长规格书中的嵌套条款、交叉引用、简洁表格式陈述，机翻容易失真或欠译（覆盖率校验届时可能拒绝输出）。
+- **专有名词脆弱**——不经占位符保护，`MDC`、`AMI`、`HPLC` 等缩略语常被小写化或转写；占位符保护能缓解，但对未收录缩略语仍不彻底。
+- **需要出网**——在只能访问 Claude API 的锁定 CI 主机上不可用。
+
+#### Agent / Claude（`-e agent`）
+
+**优势**
+- **上下文感知**——Claude 能看到整条需求，必要时还可参照整个队列，
+  因此术语保持一致（`MDC` 仍为 `MDC`，`last-gasp` 取"断电最后一搏"的
+  计量语义），嵌套条款处理干净。
+- **最适合密集、简短的技术文本**——正是规格书提炼出的需求的典型形态，
+  输出接近人工翻译。
+- **不依赖 Google**——在仅可访问 Claude API 的环境同样可用。
+- **自一致性**——agent 对文档中重复出现的短语给出统一翻译，而分块的
+  Google 可能每次略有不同。
+
+**劣势**
+- **较慢**——每条需求一次推理；400 条需求的文件需数分钟。脚本通过分批
+  与多 agent turn 并行来缓解。
+- **token 费用**——按千 token 计费，大文档成本明显高于免费的 Google 路径。
+- **对流畅长文偶有"润色"**——对于叙事性长段落（需求列表里罕见），
+  流畅的引擎可能"改进"措辞而非忠实翻译；覆盖率校验能发现内容丢失，
+  但无法捕捉风格偏移。
+
+### 如何选择
+
+| 场景 | 推荐引擎 |
+|---|---|
+| 快速预览、大批量、流畅行文 | `-e google` |
+| 密集技术规格、术语一致性要求高 | `-e agent` |
+| 网络受限（仅可访问 Claude API） | `-e agent` |
+| 对 Google 初稿做二轮润色 | 先跑 Google，再对队列跑 Agent |
+
+> **注意**：Agent 模式下，`extra_do_not_translate` 列表同样生效；agent 在
+> 翻译前须用相同的 `__PROPER_<uuid>__` 占位符替换这些词（与 Google 路径
+> 共用同一套 `_protect_proper_nouns` / `_restore_proper_nouns` 契约），
+> 因此两个引擎的保护行为完全一致。
 
 ---
 
